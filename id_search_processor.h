@@ -72,6 +72,7 @@ public:
 	virtual void init(const string& app,
 			  const string& version,
 			  const string& device,
+			  const string& time,
 			  int argc,
 			  char** argv) {
 		_app = app;

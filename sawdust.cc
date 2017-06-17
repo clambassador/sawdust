@@ -10,6 +10,7 @@
 #include "id_search_processor.h"
 #include "keymap_processor.h"
 #include "null_processor.h"
+#include "save_processor.h"
 #include "packet.h"
 
 #include "ib/fileutil.h"
@@ -30,6 +31,7 @@ int main(int argc, char** argv) {
 	processors["bigdata"].reset(new BigdataProcessor());
 	processors["id_search"].reset(new IDSearchProcessor(devfile));
 	processors["null"].reset(new NullProcessor());
+	processors["save"].reset(new SaveProcessor());
 
 	if (argc < 5) {
 		Logger::error("usage: packetprocessor filename device hwid processor args");
@@ -52,13 +54,13 @@ int main(int argc, char** argv) {
 		if (argv[1][i] == '/') last = i + 1;
 	}
 	string filename = argv[1] + last;
-	string app, version, device;
+	string app, version, device, time;
 	device = argv[3];
-	if (Tokenizer::extract("%-%-%.log", filename, &app, &version, nullptr) != 3) {
+	if (Tokenizer::extract("%-%-%.log", filename, &app, &version, &time) != 3) {
 		Tokenizer::extract("%-%.log", filename, &app, &version);
 	}
 
-	cur->init(app, version, device, argc - 5, argv + 5);
+	cur->init(app, version, device, time, argc - 5, argv + 5);
 
 	string message, post, working;
 	set<string> seen;

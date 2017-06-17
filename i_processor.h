@@ -16,6 +16,7 @@ public:
 	virtual void init(const string& app,
 			  const string& version,
 			  const string& device,
+			  const string& time,
 			  int argc,
 			  char** argv) = 0;
 	virtual void process(Packet* packet) = 0;
