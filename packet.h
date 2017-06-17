@@ -59,11 +59,12 @@ public:
 		}
 		string rawheader = raw.substr(0, pos);
 
-		if (Tokenizer::extract("%\n%  %", rawheader, nullptr, &_time, nullptr)
+		string time, date;
+		if (Tokenizer::extract("%\n% % %", rawheader, nullptr, &date, &time, nullptr)
 		    < 3) {
 			Logger::error("cannot find time %", raw.substr(0, 30));
 		}
-
+		_time = date + " " + time;
 		get(rawheader, "dns", &_dns);
 		get(rawheader, "sni", &_sni);
 		get(rawheader, "app", &_app);

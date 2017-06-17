@@ -114,13 +114,13 @@ int main(int argc, char** argv) {
 	for (auto &x : lines) {
 		size_t pos = x.find("Permission-Sensitive-UCB");
 		if (pos != string::npos) {
-			string time;
+			string time, date;
 			string permission, package;
 			Tokenizer::extract(
-			    "%  %Permission-Sensitive-UCB: android.permission.%:%:%",
-			    x, &time, nullptr, &permission, &package, nullptr);
+			    "% % %Permission-Sensitive-UCB: android.permission.%:%:%",
+			    x, &date, &time, nullptr, &permission, &package, nullptr);
 			if (package == app) {
-				used_permissions[permission] = time;
+				used_permissions[permission] = date + " " + time;
 			}
 		}
 	}
