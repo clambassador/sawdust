@@ -1,0 +1,6 @@
+ib/
+*.o
+permission_processor
+sawdust
+string_search_dump
+.sconsign.dblite
