@@ -77,9 +77,11 @@ int main(int argc, char** argv) {
 		ret = Tokenizer::extract(
 			"%" + Logger::stringify("%", tid) + " I " + footer + "%",
 					 post, &message, nullptr);
-		if (ret < 2) continue;
-
 		data = post;
+		if (ret < 2) {
+			Logger::error("Parse error in %", filename);
+			continue;
+		}
 
 		Packet packet(message, tid);
 		if (packet._from == app) {
