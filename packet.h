@@ -308,6 +308,7 @@ public:
 	bool _tls;
 	size_t _length;
 	bool _valid;
+	bool _loaded;
 	static map<char, int> _base64;
 };
 
