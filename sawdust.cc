@@ -47,8 +47,6 @@ int main(int argc, char** argv) {
 	}
 	IProcessor *cur = processors[argv[4]].get();
 
-	string data;
-	Fileutil::read_file(argv[1], &data);
 	int last = 0;
 	for (int i = 0; i < strlen(argv[1]); ++i) {
 		if (argv[1][i] == '/') last = i + 1;
@@ -67,6 +65,9 @@ int main(int argc, char** argv) {
 	string header = "Haystack.Flow: Outbound connection contents for ";
 	string footer = "Haystack.Flow: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^";
 
+//	Fileutil::read_file(
+	string data;
+	Fileutil::read_file(argv[1], &data);
 	while (true) {
 		int tid = 0;
 		string tmp;

@@ -50,7 +50,8 @@ public:
 						state = 1;
 					} else if (state == 1) {
 						// another app before terminal
-						if (pline.find(",")) assert(0);
+						if (pline.find(",") != string::npos)
+							assert(0);
 						if (pline == "---") state = 2;
 					}
 				}
