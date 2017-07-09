@@ -21,7 +21,7 @@ public:
 	Packet(const string& from, const string& to,
 	       const string& data, bool tls)
 		: _from(from), _to(to), _data(data), _tls(tls),
-		  _valid(true) {
+		  _valid(true), _loaded(false) {
 	}
 
 	Packet(const string& raw, int tid) : _tls(false) {
@@ -56,6 +56,7 @@ public:
 	}
 
 	virtual void pull_packet(const string& raw, int tid) {
+		_loaded = false;
 		stringstream ss;
         	string next;
 		string tls;
@@ -254,6 +255,7 @@ public:
 	}
 
 	virtual void save(const string &data, string* digest) {
+		if (_loaded) return;
 		unsigned char hash[SHA_DIGEST_LENGTH];
 		SHA1((const unsigned char* ) data.c_str(), data.length(), hash);
 		*digest = Logger::hexify(hash, SHA_DIGEST_LENGTH);
@@ -274,6 +276,7 @@ public:
 	}
 
 	virtual void load(const string &filename) {
+		_loaded = true;
 		Logger::error("loading packet %", filename);
 		ifstream fheader(Config::_()->gets("packets") + "/" +
 				 filename + ".h");
