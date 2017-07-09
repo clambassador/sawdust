@@ -32,42 +32,19 @@ public:
 		_version = version;
 		_device = device;
 		assert(argc == 0);
-		ifstream packetdb(Config::_()->gets("packet_database"));
-		ifstream appdb(Config::_()->gets("app_database"));
-		string key = app +"," + version + "," + time;
-		bool header = true;
-		while (appdb.good()) {
-			string line;
-			getline(appdb, line);
-			if (line.find(key) != string::npos) {
-				Logger::error("already processed % as %", key, line);
-				int state = 0;
-				while (packetdb.good()) {
-					string pline;
-					getline(packetdb, pline);
-					if (pline == key) {
-						assert(!state);  // app appears	twice
-						state = 1;
-					} else if (state == 1) {
-						// another app before terminal
-						if (pline.find(",") != string::npos)
-							assert(0);
-						if (pline == "---") state = 2;
-					}
-				}
-				if (state == 2)	exit(0);
-				header = false;
-				break;
-			}
+		string key = app + "," + version + "," + time;
+		string database = Config::_()->gets("packet_database")
+		    + "/" + key;
+
+		ifstream fin(database);
+		string last;
+		while (fin.good()) {
+			getline(fin, last);
 		}
-		_packetdb.open(Config::_()->gets("packet_database"),
-			       ios_base::app | ios_base::out);
-		if (header) {
-			_appdb.open(Config::_()->gets("app_database"),
-				    ios_base::app | ios_base::out);
-			_appdb << key << endl;
-			_packetdb << key << endl;
-		}
+		if (last == "---") exit(0);  // already processed;
+
+		_packetdb.open(database,
+			       ios_base::out);
 	}
 
 	void process(Packet* packet) {
@@ -82,7 +59,6 @@ public:
 
 protected:
 	ofstream _packetdb;
-	ofstream _appdb;
 };
 
 }  // namespace sawdust
