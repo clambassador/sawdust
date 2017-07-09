@@ -277,7 +277,6 @@ public:
 
 	virtual void load(const string &filename) {
 		_loaded = true;
-		Logger::error("loading packet %", filename);
 		ifstream fheader(Config::_()->gets("packets") + "/" +
 				 filename + ".h");
 		assert(fheader.good());
