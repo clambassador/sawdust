@@ -84,6 +84,9 @@ public:
 				ret = Tokenizer::extract("%->%-%(app:%)%\n%",
 					raw, nullptr, &_to, nullptr,
 					&_from, &tls, &next);
+				if (ret != 6) {
+					Logger::error("failing: % %", raw, ret);
+				}
 				assert(ret == 6);
 			}
 		}
