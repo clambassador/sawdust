@@ -22,6 +22,32 @@ public:
 		_packetdb << "---" << endl;
 	}
 
+	static string make_key(const string& app,
+			       const string& version,
+			       const string& time) {
+		return app + "," + version + "," + time;
+	}
+
+	static string get_database(const string& app,
+			           const string& version,
+			           const string& time) {
+		return Config::_()->gets("packet_database")
+		    + "/" + make_key(app, version, time);
+	}
+
+	static bool check(const string& app,
+			  const string& version,
+			  const string& time) {
+		ifstream fin(get_database(app, version, time));
+		string last, next_to_last;
+		while (fin.good()) {
+			next_to_last = last;
+			getline(fin, last);
+		}
+		if (next_to_last == "---") return true;
+		return false;
+	}
+
 	virtual void init(const string& app,
 			  const string& version,
 			  const string& device,
@@ -32,16 +58,8 @@ public:
 		_version = version;
 		_device = device;
 		assert(argc == 0);
-		string key = app + "," + version + "," + time;
-		string database = Config::_()->gets("packet_database")
-		    + "/" + key;
-
-		ifstream fin(database);
-		string last;
-		while (fin.good()) {
-			getline(fin, last);
-		}
-		if (last == "---") exit(0);  // already processed;
+		string database = get_database(app, version, time);
+		if (check(app, version, time)) exit(0);  // already processed;
 
 		_packetdb.open(database,
 			       ios_base::out);

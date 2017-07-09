@@ -7,6 +7,8 @@
 #include <openssl/sha.h>
 
 #include "ib/config.h"
+#include "ib/fileutil.h"
+#include "ib/marshalled.h"
 #include "ib/tokenizer.h"
 
 using namespace std;
@@ -24,6 +26,10 @@ public:
 
 	Packet(const string& raw, int tid) : _tls(false) {
 		pull_packet(raw, tid);
+	}
+
+	Packet(const string& file) {
+		load(file);
 	}
 
 	virtual ~Packet() {}
@@ -256,6 +262,32 @@ public:
 		if (!fout.good()) return;
 		fout.write(data.c_str(), data.length());
 		fout.close();
+
+		Marshalled me(_from, _to, _dns, _sni,
+			      _app, _time, _ip, _port, _tls, _length, _valid);
+		ofstream fheader(Config::_()->gets("packets") + "/" + *digest
+			      + ".h",
+			      ios::out | ios::binary);
+		if (!fheader.good()) return;
+		fheader.write(me.str().c_str(), me.str().length());
+		fheader.close();
+	}
+
+	virtual void load(const string &filename) {
+		Logger::error("loading packet %", filename);
+		ifstream fheader(Config::_()->gets("packets") + "/" +
+				 filename + ".h");
+		assert(fheader.good());
+		string data;
+		Fileutil::read_file(Config::_()->gets("packets") + "/" +
+		                    filename + ".h", &data);
+		Marshalled me;
+		me.data(data);
+		me.pull(&_from, &_to, &_dns, &_sni,
+			&_app, &_time, &_ip, &_port, &_tls, &_length, &_valid);
+		Fileutil::read_file(Config::_()->gets("packets") + "/" +
+				    filename, &_data);
+		_raw = _data;
 	}
 
 	string _from;

@@ -64,28 +64,49 @@ int main(int argc, char** argv) {
 	set<string> seen;
 	string header = "Haystack.Flow: Outbound connection contents for ";
 	string footer = "Haystack.Flow: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^";
+	bool saved = false;
+	string key = app + "," + version + "," + time;
+	string database = Config::_()->gets("packet_database")
+	                  + "/" + key;
 
-	string data;
-	Fileutil::read_file(argv[1], &data);
-	while (true) {
-		int tid = 0;
-		string tmp;
-		int ret = Tokenizer::extract("% I " + header + "%",
-				  	     data, &tmp, &post);
-		if (ret < 2) break;
-		Tokenizer::last_token(tmp, " ", &tid);
-		ret = Tokenizer::extract(
-			"%" + Logger::stringify("%", tid) + " I " + footer + "%",
-					 post, &message, nullptr);
-		data = post;
-		if (ret < 2) {
-			Logger::error("Parse error in %", filename);
-			continue;
+	ifstream fin(database);
+	if (SaveProcessor::check(app, version, time)) {
+		vector<string> packets;
+		Fileutil::read_file(SaveProcessor::get_database(app, version,
+								time),
+				    &packets);
+		assert(packets.size());
+		assert(packets.back() == "---");
+		packets.pop_back();
+		for (auto &x : packets) {
+			Packet packet(x);
+			if (packet.valid() && packet._from == app) {
+				cur->process(&packet);
+			}
 		}
+	} else {
+		string data;
+		Fileutil::read_file(argv[1], &data);
+		while (true) {
+			int tid = 0;
+			string tmp;
+			int ret = Tokenizer::extract("% I " + header + "%",
+					  	     data, &tmp, &post);
+			if (ret < 2) break;
+			Tokenizer::last_token(tmp, " ", &tid);
+			ret = Tokenizer::extract(
+				"%" + Logger::stringify("%", tid) + " I " + footer + "%",
+						 post, &message, nullptr);
+			data = post;
+			if (ret < 2) {
+				Logger::error("Parse error in %", filename);
+				continue;
+			}
 
-		Packet packet(message, tid);
-		if (packet.valid() && packet._from == app) {
-			cur->process(&packet);
+			Packet packet(message, tid);
+			if (packet.valid() && packet._from == app) {
+				cur->process(&packet);
+			}
 		}
 	}
 }
