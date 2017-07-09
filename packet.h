@@ -18,7 +18,8 @@ class Packet {
 public:
 	Packet(const string& from, const string& to,
 	       const string& data, bool tls)
-		: _from(from), _to(to), _data(data), _tls(tls) {
+		: _from(from), _to(to), _data(data), _tls(tls),
+		  _valid(true) {
 	}
 
 	Packet(const string& raw, int tid) : _tls(false) {
@@ -44,6 +45,10 @@ public:
 		}
 	}
 
+	virtual bool valid() const {
+		return _valid;
+	}
+
 	virtual void pull_packet(const string& raw, int tid) {
 		stringstream ss;
         	string next;
@@ -51,6 +56,7 @@ public:
 
 		size_t pos;
 		bool done = false;
+		_valid = true;
 		for (pos = 0; pos < raw.length(); ++pos) {
 			if (raw[pos] == '\n') {
 			       if (done) break;
@@ -85,9 +91,9 @@ public:
 					raw, nullptr, &_to, nullptr,
 					&_from, &tls, &next);
 				if (ret != 6) {
-					Logger::error("failing: % %", raw, ret);
+					_valid = false;
+					return;
 				}
-				assert(ret == 6);
 			}
 		}
 		_tls = tls.find("TLS") != string::npos;
@@ -266,6 +272,7 @@ public:
 	string _full_digest;
 	bool _tls;
 	size_t _length;
+	bool _valid;
 	static map<char, int> _base64;
 };
 

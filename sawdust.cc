@@ -65,7 +65,6 @@ int main(int argc, char** argv) {
 	string header = "Haystack.Flow: Outbound connection contents for ";
 	string footer = "Haystack.Flow: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^";
 
-//	Fileutil::read_file(
 	string data;
 	Fileutil::read_file(argv[1], &data);
 	while (true) {
@@ -85,7 +84,7 @@ int main(int argc, char** argv) {
 		}
 
 		Packet packet(message, tid);
-		if (packet._from == app) {
+		if (packet.valid() && packet._from == app) {
 			cur->process(&packet);
 		}
 	}
