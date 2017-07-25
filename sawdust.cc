@@ -58,6 +58,12 @@ int main(int argc, char** argv) {
 		Tokenizer::extract("%-%.log", filename, &app, &version);
 	}
 
+	if (app.empty()) {
+		Logger::error("Unable to parse app name from file name. "
+			      "Use format: app-version-time.log");
+		return 0;
+	}
+
 	cur->init(app, version, device, time, argc - 5, argv + 5);
 
 	string message, post, working;
