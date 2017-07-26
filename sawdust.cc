@@ -10,6 +10,7 @@
 #include "id_search_processor.h"
 #include "keymap_processor.h"
 #include "null_processor.h"
+#include "packet_source_processor.h"
 #include "save_processor.h"
 #include "packet.h"
 
@@ -32,6 +33,7 @@ int main(int argc, char** argv) {
 	processors["id_search"].reset(new IDSearchProcessor(devfile));
 	processors["null"].reset(new NullProcessor());
 	processors["save"].reset(new SaveProcessor());
+	processors["packet_source"].reset(new PacketSourceProcessor());
 
 	if (argc < 5) {
 		Logger::error("usage: packetprocessor filename device hwid processor args");
