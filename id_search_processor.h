@@ -171,6 +171,35 @@ protected:
 				_pii[Logger::stringify("%_%_upper", key, i++)] =
 				    Tokenizer::trimout(upper, ":");
 			}
+		} else if (key == "aaid") {
+			map<string, string> perms;
+			perms["aaid"] = value;
+			string space, empty, underscore;
+			for (int i = 0; i < value.length(); ++i) {
+				if (value[i] == '-') {
+					space += " ";
+					underscore += "_";
+				} else {
+					space += value[i];
+					empty += value[i];
+					underscore += value[i];
+				}
+			}
+
+			perms["aaid_space"] = space;
+			perms["aaid_empty"] = empty;
+			perms["aaid_underscore"] = underscore;
+			for (auto &x : perms) {
+				_pii[x.first] = x.second;
+				string upper;
+				transform(x.second.begin(),
+					  x.second.end(),
+					  back_inserter(upper),
+					  ::toupper);
+				if (upper != x.second) {
+					_pii[x.first + "_upper"] = upper;
+				}
+			}
 		} else {
 			string upper;
 			transform(value.begin(),
