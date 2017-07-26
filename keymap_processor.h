@@ -33,7 +33,7 @@ public:
 	}
 
 	void process(Packet* packet) {
-		if (packet->_from != _app) return;
+		if (packet->_app != _app) return;
 		pull_query(packet);
 		pull_json(packet);
 	}

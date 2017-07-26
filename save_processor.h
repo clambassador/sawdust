@@ -67,7 +67,7 @@ public:
 
 	void process(Packet* packet) {
 		packet->save();
-		if (packet->_from != _app) return;
+//		if (packet->_from != _app) return;
 		_packetdb << packet->_digest << endl
 		          << packet->_full_digest << endl;
 	}

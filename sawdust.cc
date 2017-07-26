@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
 		packets.pop_back();
 		for (auto &x : packets) {
 			Packet packet(x);
-			if (packet.valid() && packet._from == app) {
+			if (packet.valid()) {
 				cur->process(&packet);
 			}
 		}
@@ -112,7 +112,7 @@ int main(int argc, char** argv) {
 			}
 
 			Packet packet(message, tid);
-			if (packet.valid() && packet._from == app) {
+			if (packet.valid()) {
 				cur->process(&packet);
 			}
 		}

@@ -31,6 +31,7 @@ public:
 	}
 
 	void process(Packet* packet) {
+		if (packet->_app != _app) return;
 		size_t len = packet->_length;
 		size_t bits = 0;
 		while (len) {
