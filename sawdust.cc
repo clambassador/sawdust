@@ -9,6 +9,8 @@
 #include "i_processor.h"
 #include "id_search_processor.h"
 #include "keymap_processor.h"
+#include "mood.h"
+#include "mood_processor.h"
 #include "null_processor.h"
 #include "packet_source_processor.h"
 #include "save_processor.h"
@@ -31,6 +33,7 @@ int main(int argc, char** argv) {
 	processors["keymap"].reset(new KeymapProcessor());
 	processors["bigdata"].reset(new BigdataProcessor());
 	processors["id_search"].reset(new IDSearchProcessor(devfile));
+	processors["mood"].reset(new MoodProcessor());
 	processors["null"].reset(new NullProcessor());
 	processors["save"].reset(new SaveProcessor());
 	processors["packet_source"].reset(new PacketSourceProcessor());
@@ -72,7 +75,6 @@ int main(int argc, char** argv) {
 	set<string> seen;
 	string header = "Haystack.Flow: Outbound connection contents for ";
 	string footer = "Haystack.Flow: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^";
-	bool saved = false;
 	string key = app + "," + version + "," + time;
 	string database = Config::_()->gets("packet_database")
 	                  + "/" + key;
@@ -94,12 +96,14 @@ int main(int argc, char** argv) {
 		}
 	} else {
 		string data;
+		Mood mood(app);
 		Fileutil::read_file(argv[1], &data);
 		while (true) {
 			int tid = 0;
 			string tmp;
 			int ret = Tokenizer::extract("% I " + header + "%",
 					  	     data, &tmp, &post);
+			mood.consider(tmp);
 			if (ret < 2) break;
 			Tokenizer::last_token(tmp, " ", &tid);
 			ret = Tokenizer::extract(
@@ -111,7 +115,7 @@ int main(int argc, char** argv) {
 				continue;
 			}
 
-			Packet packet(message, tid);
+			Packet packet(message, tid, mood());
 			if (packet.valid()) {
 				cur->process(&packet);
 			}

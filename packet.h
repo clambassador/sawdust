@@ -19,12 +19,14 @@ namespace sawdust {
 class Packet {
 public:
 	Packet(const string& from, const string& to,
-	       const string& data, bool tls)
+	       const string& data, bool tls,
+	       int mood)
 		: _from(from), _to(to), _data(data), _tls(tls),
-		  _valid(true), _loaded(false) {
+		  _valid(true), _loaded(false), _mood(mood) {
 	}
 
-	Packet(const string& raw, int tid) : _tls(false) {
+	Packet(const string& raw, int tid, int mood) : _tls(false),
+						       _mood(mood) {
 		pull_packet(raw, tid);
 	}
 
@@ -266,7 +268,8 @@ public:
 		fout.close();
 
 		Marshalled me(_from, _to, _dns, _sni,
-			      _app, _time, _ip, _port, _tls, _length, _valid);
+			      _app, _time, _ip, _port, _tls, _length, _valid,
+			      _mood);
 		ofstream fheader(Config::_()->gets("packets") + "/" + *digest
 			      + ".h",
 			      ios::out | ios::binary);
@@ -286,7 +289,8 @@ public:
 		Marshalled me;
 		me.data(data);
 		me.pull(&_from, &_to, &_dns, &_sni,
-			&_app, &_time, &_ip, &_port, &_tls, &_length, &_valid);
+			&_app, &_time, &_ip, &_port, &_tls, &_length, &_valid,
+			&_mood);
 		Fileutil::read_file(Config::_()->gets("packets") + "/" +
 				    filename, &_data);
 		_raw = _data;
@@ -308,6 +312,7 @@ public:
 	size_t _length;
 	bool _valid;
 	bool _loaded;
+	int _mood;
 	static map<char, int> _base64;
 };
 
