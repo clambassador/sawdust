@@ -4,12 +4,11 @@ function procpackets() {
     if [ $# -eq 1 ]; then
         LOG_FILE=$1
         DEV_FILE=${LOG_FILE%.log}.device
+        ID_FILE=${LOG_FILE%.log}.idf
         HWID=$(grep 'hwid' $DEV_FILE | cut -d ' ' -f2)
 
-        ID_FILE=id_search.csv
         ./sawdust $LOG_FILE $DEV_FILE $HWID id_search > $ID_FILE
         python id_search.py $ID_FILE
-        rm $ID_FILE
     fi
 }
 
