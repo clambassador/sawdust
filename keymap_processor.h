@@ -30,6 +30,7 @@ public:
 		_version = version;
 		_device = device;
 		assert(argc == 0);
+	        cout << "app,version,hwid,dest,tls,digest,key,value" << endl;
 	}
 
 	void process(Packet* packet) {
