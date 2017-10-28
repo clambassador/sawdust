@@ -72,6 +72,7 @@ protected:
 		     << _device << ","
 		     << packet->_to << ","
 		     << packet->_tls << ","
+		     << packet->_full_digest << ","
 		     << Formatting::csv_escape(Formatting::to_lower(trim(key))) << ","
 		     << Formatting::csv_escape(trim(value)) << endl;
 	}
