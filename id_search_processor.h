@@ -163,8 +163,15 @@ protected:
 					  back_inserter(lower),
 					  ::tolower);
 				if (upper == "02:00:00:00:00:00") continue;
+				stringstream ss;
+				for (int i = 0; i < 16; i += 3) {
+					int val = stoi(upper.substr(i, 2), 0, 16);
+					ss << (char) val;
+				}
 
 				_pii[Logger::stringify("%_%", key, i++)] = lower;
+				_pii[Logger::stringify("%_%", key, i++)] =
+				    ss.str();
 				_pii[Logger::stringify("%_%", key, i++)] =
 				    Tokenizer::trimout(lower, ":");
 				_pii[Logger::stringify("%_%_upper", key, i++)] = upper;
