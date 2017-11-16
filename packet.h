@@ -20,13 +20,14 @@ class Packet {
 public:
 	Packet(const string& from, const string& to,
 	       const string& data, bool tls,
-	       int mood)
+	       int mood, const string& dir)
 		: _from(from), _to(to), _data(data), _tls(tls),
-		  _valid(true), _loaded(false), _mood(mood) {
+		  _valid(true), _loaded(false), _mood(mood),
+		  _dir(dir) {
 	}
 
-	Packet(const string& raw, int tid, int mood) : _tls(false),
-						       _mood(mood) {
+	Packet(const string& raw, int tid, int mood,
+	       const string& dir) : _tls(false), _mood(mood), _dir(dir) {
 		pull_packet(raw, tid);
 	}
 
@@ -109,7 +110,10 @@ public:
 
 		ret = Tokenizer::extract("%packets (% bytes raw%",
 				         tls, nullptr, &_length, nullptr);
-		assert(ret == 3);
+		if (ret < 3) {
+			_valid = false;  // haystack throws exception
+			return;
+		}
 
 	        string data;
 		string tmp;
@@ -128,6 +132,7 @@ public:
 
 		add_base64();
 		hash();
+		save();
 	}
 
 	virtual void add_base64() {
@@ -225,9 +230,6 @@ public:
 			return str;
 		}
 		return "";
-//			cout << _from << "," << _to << ","
-//			     << str << endl;
-//		}
 	}
 
 	virtual void base64_init() {
@@ -267,9 +269,9 @@ public:
 		fout.write(data.c_str(), data.length());
 		fout.close();
 
-		Marshalled me(_from, _to, _dns, _sni,
+		Marshalled me(_from, _to, _dir, _dns, _sni,
 			      _app, _time, _ip, _port, _tls, _length, _valid,
-			      _mood);
+			      _mood, _digest, _full_digest);
 		ofstream fheader(Config::_()->gets("packets") + "/" + *digest
 			      + ".h",
 			      ios::out | ios::binary);
@@ -288,9 +290,9 @@ public:
 		                    filename + ".h", &data);
 		Marshalled me;
 		me.data(data);
-		me.pull(&_from, &_to, &_dns, &_sni,
+		me.pull(&_from, &_to, &_dir, &_dns, &_sni,
 			&_app, &_time, &_ip, &_port, &_tls, &_length, &_valid,
-			&_mood);
+			&_mood, &_digest, &_full_digest);
 		Fileutil::read_file(Config::_()->gets("packets") + "/" +
 				    filename, &_data);
 		_raw = _data;
@@ -313,6 +315,7 @@ public:
 	bool _valid;
 	bool _loaded;
 	int _mood;
+	string _dir;
 	static map<char, int> _base64;
 };
 

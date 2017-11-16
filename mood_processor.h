@@ -31,6 +31,7 @@ public:
 
 	void process(Packet* packet) {
 		cout << _app << "," << _version << "," << _device
+		     << "," << packet->_dir
 		     << "," << packet->_to << ","
 		     << packet->_mood << endl;
 	}

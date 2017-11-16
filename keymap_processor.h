@@ -30,7 +30,7 @@ public:
 		_version = version;
 		_device = device;
 		assert(argc == 0);
-	        cout << "app,version,hwid,dest,tls,digest,key,value" << endl;
+	        cout << "app,version,hwid,direction,dest,tls,digest,key,value" << endl;
 	}
 
 	void process(Packet* packet) {
@@ -71,6 +71,7 @@ protected:
 	        cout << _app << ","
 		     << _version << ","
 		     << _device << ","
+		     << packet->_dir << ","
 		     << packet->_to << ","
 		     << packet->_tls << ","
 		     << packet->_full_digest << ","

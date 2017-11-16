@@ -86,6 +86,7 @@ public:
 
 	void process(Packet* packet) {
 		if (packet->_app != _app) return;
+		if (packet->_dir != "O") return;
 		packet->save();
 		for (const auto &x : _pii) {
 			size_t pos = packet->_data.find(x.second);

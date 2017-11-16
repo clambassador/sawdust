@@ -73,7 +73,8 @@ int main(int argc, char** argv) {
 
 	string message, post, working;
 	set<string> seen;
-	string header = "Haystack.Flow: Outbound connection contents for ";
+	string header_in = "Haystack.Flow: Inbound connection contents for ";
+	string header_out = "Haystack.Flow: Outbound connection contents for ";
 	string footer = "Haystack.Flow: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^";
 	string key = app + "," + version + "," + time;
 	string database = Config::_()->gets("packet_database")
@@ -88,36 +89,49 @@ int main(int argc, char** argv) {
 		assert(packets.size());
 		assert(packets.back() == "---");
 		packets.pop_back();
+		bool full = false;
 		for (auto &x : packets) {
+			if (full == false) {
+				full = true;
+				continue;
+			} else {
+				full = false;
+			}
 			Packet packet(x);
 			if (packet.valid()) {
 				cur->process(&packet);
 			}
 		}
 	} else {
-		string data;
-		Mood mood(app);
-		Fileutil::read_file(argv[1], &data);
-		while (true) {
-			int tid = 0;
-			string tmp;
-			int ret = Tokenizer::extract("% I " + header + "%",
-					  	     data, &tmp, &post);
-			mood.consider(tmp);
-			if (ret < 2) break;
-			Tokenizer::last_token(tmp, " ", &tid);
-			ret = Tokenizer::extract(
-				"%" + Logger::stringify("%", tid) + " I " + footer + "%",
-						 post, &message, nullptr);
-			data = post;
-			if (ret < 2) {
-				Logger::error("Parse error in %", filename);
-				continue;
-			}
+		vector<pair<string, string>> headers;
+		headers.push_back(make_pair("I", header_in));
+		headers.push_back(make_pair("O", header_out));
+		string dir;
+		for (auto &x : headers) {
+			string data;
+			Mood mood(app);
+			Fileutil::read_file(argv[1], &data);
+			while (true) {
+				int tid = 0;
+				string tmp;
+				int ret = Tokenizer::extract("% I " + x.second + "%",
+						  	     data, &tmp, &post);
+				if (ret < 2) break;
+				mood.consider(tmp);
+				Tokenizer::last_token(tmp, " ", &tid);
+				ret = Tokenizer::extract(
+					"%" + Logger::stringify("%", tid) + " I " + footer + "%",
+							 post, &message, nullptr);
+				data = post;
+				if (ret < 2) {
+					Logger::error("Parse error in %", filename);
+					continue;
+				}
 
-			Packet packet(message, tid, mood());
-			if (packet.valid()) {
-				cur->process(&packet);
+				Packet packet(message, tid, mood(), x.first);
+				if (packet.valid()) {
+					cur->process(&packet);
+				}
 			}
 		}
 	}
