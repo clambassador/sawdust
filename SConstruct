@@ -15,6 +15,7 @@ mains['sawdust.cc'] = 'sawdust'
 mains['permission_processor.cc'] = 'permission_processor'
 mains['string_search_dump.cc'] = 'string_search_dump'
 mains['keymap_a_packet.cc'] = 'keymap_a_packet'
+mains['process_a_packet.cc'] = 'process_a_packet'
 
 libs = Split("""pthread
 		crypto

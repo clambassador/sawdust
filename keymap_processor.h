@@ -37,6 +37,7 @@ public:
 		if (packet->_app != _app) return;
 		pull_query(packet);
 		pull_json(packet);
+		pull_xml(packet);
 	}
 
 	virtual string trace() const {
@@ -77,6 +78,25 @@ protected:
 		     << packet->_full_digest << ","
 		     << Formatting::csv_escape(Formatting::to_lower(trim(key))) << ","
 		     << Formatting::csv_escape(trim(value)) << endl;
+	}
+
+	void pull_xml(Packet* packet) {
+	        vector<string> xmls;
+        	Tokenizer::extract_all_paired("<", ">", packet->_data, &xmls);
+		set<string> seen;
+		for (int i = 0; i < xmls.size() - 1; ++i) {
+			if (seen.count(xmls[i])) continue;
+			if ("/" + xmls[i] == xmls[i+1]) {
+				vector<string> values;
+				Tokenizer::extract_all_paired(
+				   "<" + xmls[i] + ">", "<" + xmls[i+1] + ">",
+				   packet->_data, &values);
+				for (auto j : values) {
+					observe(packet, xmls[i], j);
+				}
+				seen.insert(xmls[i]);
+			}
+		}
 	}
 
 	void pull_json(Packet* packet) {

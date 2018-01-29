@@ -8,6 +8,7 @@
 
 #include "ib/config.h"
 #include "ib/fileutil.h"
+#include "ib/logger.h"
 #include "ib/marshalled.h"
 #include "ib/tokenizer.h"
 
@@ -36,6 +37,10 @@ public:
 	}
 
 	virtual ~Packet() {}
+
+	virtual void trace() {
+		Logger::info("%", _data);
+	}
 
 	virtual void save() {
 		save(_raw, &_digest);
@@ -164,6 +169,10 @@ public:
 				++i;
 			} else if (_data[i] == '"') {
 				go = true;
+			} else if (_data[i] == '&') {
+				go = true;
+			} else if (_data[i] == ';') {
+				go = true;
 			}
 		}
 		if (ss.str().length()) add << base64_try(ss.str());
@@ -208,15 +217,16 @@ public:
 		int ascii = 0;
 		int run = 0;
 		int i;
+		int late_start = -1;
 		for (i = 0; i < str.length(); ++i) {
 			char c = str[i];
-			if (c == '\0') break;
-			if (isalnum(c) || isspace(c) ||
-			    c == ',' || c == '{' || c == '}' ||
+			if (isalnum(c) || isspace(c) || c == 0x00 || c == '\xFF'
+			    || c == ',' || c == '{' || c == '}' ||
 			    c == '&' || c == '=' || c == ':' || c == '"' ||
 			    c == '$' || c == '!' || c == '%' || c == '-' ||
 			    c == '_' || c == '[' || c == ']' || c == '(' ||
 			    c == ')' || c == '/' || c == '\\' || c == '\'') {
+				if (late_start == -1) late_start = i;
 				++ascii;
 				++run;
 			}  else {
@@ -224,10 +234,13 @@ public:
 				run = 0;
 			}
 		}
-		if (!i) return "";
 		if (run > longrun) longrun = run;
-		if (longrun > 6 && ((ascii * 100) / str.length()) > 80) {
-			return str;
+
+		if (!i) return "";
+		if ((longrun > 25) || (longrun > 8 && ((ascii * 100) /
+						     (str.length() -
+						      late_start)) > 85)) {
+			return str.substr(0, late_start) + " " + str.substr(late_start) + " ";
 		}
 		return "";
 	}

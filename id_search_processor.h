@@ -8,6 +8,7 @@
 
 #include "i_processor.h"
 #include "packet.h"
+#include "ib/csv_table.h"
 #include "ib/fileutil.h"
 #include "ib/logger.h"
 #include "ib/tokenizer.h"
@@ -59,7 +60,56 @@ public:
 			_pii["sha256_" + x] = Logger::lower_hexify(
 				(uint8_t *) digest.c_str(), digest.length());
 		}
+		items.clear();
+		for (auto &x : _pii) {
+			items.push_back(x.first);
+		}
+		for (auto &x : items) {
+			char buf[4096];
+			assert(4096 > _pii[x].length());
+			Base64encode(
+				buf, _pii[x].c_str(), _pii[x].length());
+			_pii["base64_" + x] = buf;
+		}
 	}
+
+/*https://opensource.apple.com/source/QuickTimeStreamingServer/QuickTimeStreamingServer-452/CommonUtilitiesLib/base64.c.  */
+
+virtual int Base64encode_len(int len) {
+    return ((len + 2) / 3 * 4) + 1;
+}
+
+virtual int Base64encode(char *encoded, const char *str, int len) {
+    int i;
+    char *p;
+    string basis_64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    p = encoded;
+    for (i = 0; i < len - 2; i += 3) {
+    *p++ = basis_64[(str[i] >> 2) & 0x3F];
+    *p++ = basis_64[((str[i] & 0x3) << 4) |
+                    ((int) (str[i + 1] & 0xF0) >> 4)];
+    *p++ = basis_64[((str[i + 1] & 0xF) << 2) |
+                    ((int) (str[i + 2] & 0xC0) >> 6)];
+    *p++ = basis_64[str[i + 2] & 0x3F];
+    }
+    if (i < len) {
+    *p++ = basis_64[(str[i] >> 2) & 0x3F];
+    if (i == (len - 1)) {
+        *p++ = basis_64[((str[i] & 0x3) << 4)];
+        *p++ = '=';
+    }
+    else {
+        *p++ = basis_64[((str[i] & 0x3) << 4) |
+                        ((int) (str[i + 1] & 0xF0) >> 4)];
+        *p++ = basis_64[((str[i + 1] & 0xF) << 2)];
+    }
+    *p++ = '=';
+    }
+
+    *p++ = '\0';
+    return p - encoded;
+}
 
 	virtual ~IDSearchProcessor() {}
 
@@ -89,6 +139,10 @@ public:
 		if (packet->_dir != "O") return;
 		packet->save();
 		for (const auto &x : _pii) {
+			if (x.second.length() == 0) {
+				Logger::error("zero length for % in %",
+					      x.first, packet->_digest);
+			}
 			size_t pos = packet->_data.find(x.second);
 			if (pos != string::npos) {
 				cout << packet->_time << ","
@@ -102,7 +156,9 @@ public:
 				     << x.first << ","
 				     << pos << ","
 				     << packet->_digest << ","
-				     << packet->_full_digest
+				     << packet->_full_digest << ","
+				     << packet->_mood << ","
+				     << _device
 				     << endl;
 			}
 		}
@@ -163,6 +219,7 @@ protected:
 					  x.end(),
 					  back_inserter(lower),
 					  ::tolower);
+				if (upper == "00:00:00:00:00:00") continue;
 				if (upper == "02:00:00:00:00:00") continue;
 				stringstream ss;
 				for (int i = 0; i < 16; i += 3) {
@@ -207,6 +264,18 @@ protected:
 				if (upper != x.second) {
 					_pii[x.first + "_upper"] = upper;
 				}
+			}
+		} else if (key == "imei") {
+			CSVTable imsi;
+			imsi.stream("imsiimei.csv");
+
+			vector<string> data;
+			while (imsi.get_next_row(&data)) {
+				if (data[1] == value) {
+					_pii["imsi"] = data[0];
+					break;
+				}
+				data.clear();
 			}
 		} else {
 			string upper;

@@ -29,21 +29,14 @@ int main(int argc, char** argv) {
 	string devfile = "";
 	map<string, string> processor_description;
 	map<string, unique_ptr<IProcessor>> processors;
-	processors["keymap"].reset(new KeymapProcessor());
 
 	if (argc < 2) {
-		Logger::error("usage: packetprocessor packetname");
-		Logger::error("");
-		Logger::error("processors: %", processors);
+		Logger::error("usage: packetprocessor packetfile");
 		return -1;
 	}
-	IProcessor *cur = processors["keymap"].get();
-
 	string data;
 	Fileutil::read_file(argv[1], &data);
-	Packet packet("", "", data, 0, 0, "O");
-	assert(packet.valid());
-
-	cur->init(packet._app, "", "", "", 0, nullptr);
-	cur->process(&packet);
+	Packet packet("", "", data, 1, 0, "O");
+	packet.add_base64();
+	packet.trace();
 }

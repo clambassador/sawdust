@@ -30,6 +30,7 @@ public:
 	}
 
 	void process(Packet* packet) {
+		if (packet->_app != _app) return;
 		cout << _app << "," << _version << "," << _device
 		     << "," << packet->_dir
 		     << "," << packet->_to << ","
