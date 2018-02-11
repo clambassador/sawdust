@@ -84,6 +84,7 @@ protected:
 	        vector<string> xmls;
         	Tokenizer::extract_all_paired("<", ">", packet->_data, &xmls);
 		set<string> seen;
+		if (xmls.empty()) return;
 		for (int i = 0; i < xmls.size() - 1; ++i) {
 			if (seen.count(xmls[i])) continue;
 			if ("/" + xmls[i] == xmls[i+1]) {
