@@ -25,22 +25,24 @@ using namespace ib;
 using namespace sawdust;
 
 int main(int argc, char** argv) {
-	if (argc < 2) {
-		Logger::error("usage: packetprocessor packetfile");
+	if (argc < 4) {
+		Logger::error("usage: dns_resolve csv ipdns col1 col2");
 		return -1;
 	}
 	CSVTable table_in;
 	map<string, string> corrections;
 	CSVTable::load_map(argv[2], &corrections);
 	table_in.load(argv[1]);
-	const vector<string>& ip = table_in.project(5);
-	vector<string> dns = table_in.project(3);
+	int col1 = atoi(argv[3]);
+	int col2 = atoi(argv[4]);
+	const vector<string>& ip = table_in.project(col1);
+	vector<string> dns = table_in.project(col2);
 	for (size_t i = 0; i < dns.size(); ++i) {
 		if (dns[i].empty() && corrections.count(ip[i])) {
 			dns[i] = corrections[ip[i]];
 		}
 	}
-	table_in.project(3, dns);
+	table_in.project(col2, dns);
 	string prefix;
 	Tokenizer::extract("%.csv", argv[1], &prefix);
 	table_in.save(Logger::stringify("%-dns.csv", prefix));
