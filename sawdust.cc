@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "auth_processor.h"
 #include "bigdata_processor.h"
 #include "i_processor.h"
 #include "id_search_processor.h"
@@ -33,6 +34,7 @@ int main(int argc, char** argv) {
 	processors["keymap"].reset(new KeymapProcessor());
 	processors["bigdata"].reset(new BigdataProcessor());
 	processors["id_search"].reset(new IDSearchProcessor(devfile));
+	processors["auth"].reset(new AuthProcessor());
 	processors["mood"].reset(new MoodProcessor());
 	processors["null"].reset(new NullProcessor());
 	processors["save"].reset(new SaveProcessor());

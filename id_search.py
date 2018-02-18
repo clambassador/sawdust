@@ -14,7 +14,7 @@ for l in open(sys.argv[1]).read().split('\n')[:-1]:
 	    dest = p[5]
 	    data = p[8]
 
-	    key = p[1] + "," + p[2] + "," + p[3] + "," + p[4] + "," + p[5] + "," + p[6] + "," + p[7]
+	    key = p[1] + "," + p[11] + "," + p[3] + "," + p[4] + "," + p[5] + "," + p[6] + "," + p[7]
 	    if not d.has_key(key):
 	    	    d[key] = dict()
 

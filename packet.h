@@ -240,6 +240,7 @@ public:
 		if ((longrun > 25) || (longrun > 8 && ((ascii * 100) /
 						     (str.length() -
 						      late_start)) > 85)) {
+			if (late_start == 0) return str;
 			return str.substr(0, late_start) + " " + str.substr(late_start) + " ";
 		}
 		return "";
