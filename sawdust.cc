@@ -29,6 +29,7 @@ int main(int argc, char** argv) {
 	Config::_()->load("sawdust.cfg");
 	string devfile = "";
 	if (argc > 3) devfile = argv[2];
+	if (devfile == "none") devfile = "";
 	map<string, string> processor_description;
 	map<string, unique_ptr<IProcessor>> processors;
 	processors["keymap"].reset(new KeymapProcessor());
