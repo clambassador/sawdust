@@ -34,7 +34,9 @@ public:
 		cout << _app << "," << _version << "," << _device
 		     << "," << packet->_dir
 		     << "," << packet->_dns << "," << packet->_ip << ","
-		     << packet->_mood << endl;
+		     << packet->_mood
+		     << "," << packet->_full_digest
+		     << endl;
 	}
 
 	virtual string trace() const {
