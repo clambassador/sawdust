@@ -25,6 +25,36 @@ using namespace std;
 using namespace ib;
 using namespace sawdust;
 
+/* compares two timestamps, returns if a is strictly less than b.
+   note that this is not Y10K compatible.
+*/
+bool timestamp_lt(const string& a, const string& b) {
+	int year_a, year_b, unit_a, unit_b;
+	stringstream ss;
+	ss << a.substr(0, 4);
+	ss >> year_a;
+	ss.clear();
+	ss << b.substr(0, 4);
+	ss >> year_b;
+	ss.clear();
+	if (year_a < year_b) return true;
+	if (year_a > year_b) return false;
+
+	for (int i = 4; i < 14; i += 2) {
+		stringstream ss;
+		ss << a.substr(i, 2);
+		ss >> unit_a;
+		ss.clear();
+		ss << b.substr(i, 2);
+		ss >> unit_b;
+		ss.clear();
+		if (unit_a < unit_b) return true;
+		if (unit_a > unit_b) return false;
+	}
+	assert(a == b);
+	return false;
+}
+
 int main(int argc, char** argv) {
 	Config::_()->load("sawdust.cfg");
 	string devfile = "";
@@ -62,7 +92,7 @@ int main(int argc, char** argv) {
 	string filename = argv[1] + last;
 	string app, version, device, time;
 	device = argv[3];
-	if (Tokenizer::extract("%-%-%.log", filename, &app, &version, &time) != 3) {
+	if (Tokenizer::extract("%-%-test-%.log", filename, &app, &version, &time) != 3) {
 		Tokenizer::extract("%-%.log", filename, &app, &version);
 	}
 
@@ -71,7 +101,16 @@ int main(int argc, char** argv) {
 			      "Use format: app-version-time.log");
 		return 0;
 	}
-
+	bool side_file = false;
+	if (!time.empty()) {
+		if (timestamp_lt(time, "20180227205300")) {
+			// no side_file
+		} else if (timestamp_lt(time, "20180301174500")) {
+			return 0;  // don't even run
+		} else {
+			side_file = true;
+		}
+	}
 	cur->init(app, version, device, time, argc - 5, argv + 5);
 
 	string message, post, working;
@@ -106,35 +145,75 @@ int main(int argc, char** argv) {
 			}
 		}
 	} else {
-		vector<pair<string, string>> headers;
-		headers.push_back(make_pair("I", header_in));
-		headers.push_back(make_pair("O", header_out));
-		string dir;
-		for (auto &x : headers) {
-			string data;
-			Mood mood(app);
-			Fileutil::read_file(argv[1], &data);
-			while (true) {
-				int tid = 0;
-				string tmp;
-				int ret = Tokenizer::extract("% I " + x.second + "%",
+		if (side_file == false) {
+			vector<pair<string, string>> headers;
+			headers.push_back(make_pair("I", header_in));
+			headers.push_back(make_pair("O", header_out));
+			string dir;
+			for (auto &x : headers) {
+				string data;
+				Mood mood(app);
+				Fileutil::read_file(argv[1], &data);
+				while (true) {
+					int tid = 0;
+					string tmp;
+					int ret = Tokenizer::extract("% I " + x.second + "%",
 						  	     data, &tmp, &post);
-				if (ret < 2) break;
-				mood.consider(tmp);
-				Tokenizer::last_token(tmp, " ", &tid);
-				ret = Tokenizer::extract(
-					"%" + Logger::stringify("%", tid) + " I " + footer + "%",
-							 post, &message, nullptr);
-				data = post;
-				if (ret < 2) {
-					Logger::error("Parse error in %", filename);
-					continue;
+					if (ret < 2) break;
+					mood.consider(tmp);
+					Tokenizer::last_token(tmp, " ", &tid);
+					ret = Tokenizer::extract(
+						"%" + Logger::stringify("%", tid) + " I " + footer + "%",
+								 post, &message, nullptr);
+					data = post;
+					if (ret < 2) {
+						Logger::error("Parse error in %", filename);
+						continue;
+					}
+					Packet packet(message, tid, mood(),
+						      x.first);
+					if (packet.valid()) {
+						cur->process(&packet);
+					}
 				}
+			}
+		} else {
+			string root = argv[1];
+			root = root.substr(0, root.length() - 3);
+			string lumen_file = root + "lumen";
+			vector<string> data;
+			if (!Fileutil::exists(lumen_file)) {
+				Logger::error("Cannot find: %", lumen_file);
+				return 0;
+			}
 
-				Packet packet(message, tid, mood(), x.first);
+			Fileutil::read_file(lumen_file, &data);
+			string out_header =
+			    "-------------------------------------------------------------------";
+			string in_header =
+			    "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++";
+			string footer =
+			    "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^";
+
+			for (size_t i = 0; i < data.size(); ++i) {
+				assert(data[i].find(in_header) != string::npos ||
+				       data[i].find(out_header) !=
+				       string::npos);
+				string dir = "I";
+				if (data[i].find(out_header) != string::npos) dir = "O";
+				size_t j = i + 1;
+				stringstream ss;
+
+				while (data[j] != footer) {
+					ss << data[j] + '\n';
+					++j;
+					assert(j < data.size());
+				}
+				Packet packet(ss.str(), dir);
 				if (packet.valid()) {
 					cur->process(&packet);
 				}
+				i = j;
 			}
 		}
 	}

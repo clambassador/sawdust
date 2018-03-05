@@ -1,6 +1,7 @@
 #ifndef __SAWDUST__PACKET__H__
 #define __SAWDUST__PACKET__H__
 
+#include <algorithm>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -29,11 +30,16 @@ public:
 
 	Packet(const string& raw, int tid, int mood,
 	       const string& dir) : _tls(false), _mood(mood), _dir(dir) {
-		pull_packet(raw, tid);
+		pull_packet(raw, tid, true);
 	}
 
 	Packet(const string& file) {
 		load(file);
+	}
+
+	Packet(const string& raw, const string& dir) :
+			_mood(2), _dir(dir) {
+		pull_packet(raw, -1, false);
 	}
 
 	virtual ~Packet() {}
@@ -63,7 +69,7 @@ public:
 		return _valid;
 	}
 
-	virtual void pull_packet(const string& raw, int tid) {
+	virtual void pull_packet(const string& raw, int tid, bool reject_binary) {
 		_loaded = false;
 		stringstream ss;
         	string next;
@@ -79,13 +85,13 @@ public:
 			}
 		}
 		string rawheader = raw.substr(0, pos);
-
 		string time, date;
 		if (Tokenizer::extract("%\n% % %", rawheader, nullptr, &date, &time, nullptr)
 		    < 3) {
-			Logger::error("cannot find time %", raw.substr(0, 30));
+			assert(tid == -1);
+		} else {
+			_time = date + " " + time;
 		}
-		_time = date + " " + time;
 		get(rawheader, "dns", &_dns);
 		get(rawheader, "sni", &_sni);
 		get(rawheader, "app", &_app);
@@ -116,23 +122,39 @@ public:
 		ret = Tokenizer::extract("%packets (% bytes raw%",
 				         tls, nullptr, &_length, nullptr);
 		if (ret < 3) {
-			_valid = false;  // haystack throws exception
-			return;
+			ret = Tokenizer::extract("%packets (% bytes total,%",
+				         tls, nullptr, &_length, nullptr);
+			if (ret < 3) {
+				_valid = false;  // haystack throws exception
+				return;
+			}
 		}
 
 	        string data;
 		string tmp;
-	        while (true) {
-		        tmp = "";
-			data = "";
-	                int ret = Tokenizer::extract(
-		                Logger::stringify("%% % I ", tid) +
-			        "Haystack.Flow:%\n%", next, nullptr, &data, &tmp);
-	                if (ret < 3) break;
-		        ss.write(data.c_str(), data.length());
-			next = tmp;
-	        }
-		_raw = ss.str();
+		if (reject_binary) {
+		        while (true) {
+			        tmp = "";
+				data = "";
+				int ret = Tokenizer::extract(
+			                Logger::stringify("%% % I ", tid) +
+					"Haystack.Flow:%\n%", next, nullptr, &data, &tmp);
+		                if (ret < 3) break;
+				/* Discard invalid packets */
+				for (int i = 0; i < data.length(); ++i) {
+					if ((unsigned char) data[i] > 127) {
+						_valid = false;
+						return;
+					}
+				}
+			        ss.write(data.c_str(), data.length());
+				next = tmp;
+			}
+			_raw = ss.str();
+		} else {
+			assert(tid == -1);
+			_raw = next;
+		}
 		_data = Tokenizer::hex_unescape(_raw);
 
 		add_base64();
@@ -148,6 +170,10 @@ public:
 		stringstream add;
 		bool go = false;
 		int last_base = 0;
+		string rev = _data;
+		reverse(rev.begin(), rev.end());
+		_data += rev;
+
 		for (size_t i = 0; i < _data.length(); ++i) {
 			if (_data[i] == '=') {
 				ss << _data[i];
@@ -162,7 +188,7 @@ public:
 				ss.str("");
 				go = false;
 			}
-			if (is_base64(_data[i])) {
+			if (_is_base64_char[(size_t) _data[i]]) {
 				ss << _data[i];
 				last_base = i;
 			} else if (_data[i] == '\\') {
@@ -183,7 +209,6 @@ public:
 
 	virtual string base64_try(string s) {
 		if (s.empty()) return "";
-		stringstream ss;
 		static const int B64index [256] = {
 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0, 0,  0,  0,  0,  0,  0,
 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0, 0,  0,  0,  0,  0,  0,
@@ -214,18 +239,31 @@ public:
 		}
 
 		int longrun = 0;
+		int longrunm = 0;
 		int ascii = 0;
+		int asciim = 0;
 		int run = 0;
+		int runm = 0;
 		int i;
 		int late_start = -1;
+		int late_startm = -1;
+		string mask1 = Config::_()->gets("mask1");
+		string mask2 = Config::_()->gets("mask2");
+		if (mask1.empty() || mask2.empty()) {
+			mask1 = string("\0", 1);
+			mask2 = string("\0", 1);
+		}
+		int i1 = 0;
+		int i2 = 0;
+		stringstream ss;
+
 		for (i = 0; i < str.length(); ++i) {
 			char c = str[i];
-			if (isalnum(c) || isspace(c) || c == 0x00 || c == '\xFF'
-			    || c == ',' || c == '{' || c == '}' ||
-			    c == '&' || c == '=' || c == ':' || c == '"' ||
-			    c == '$' || c == '!' || c == '%' || c == '-' ||
-			    c == '_' || c == '[' || c == ']' || c == '(' ||
-			    c == ')' || c == '/' || c == '\\' || c == '\'') {
+			char cm = str[i] ^ mask1[i1] ^ mask2[i2];
+			ss << cm;
+			i1 = (i1 + 1) % mask1.length();
+			i2 = (i2 + 1) % mask2.length();
+			if (_decent_char[(size_t) c]) {
 				if (late_start == -1) late_start = i;
 				++ascii;
 				++run;
@@ -233,17 +271,48 @@ public:
 				if (run > longrun) longrun = run;
 				run = 0;
 			}
+			if (_decent_char[(size_t) cm]) {
+				if (late_startm == -1) late_startm = i;
+				++asciim;
+				++runm;
+			} else {
+				if (runm > longrunm) longrunm = runm;
+				runm = 0;
+			}
 		}
 		if (run > longrun) longrun = run;
+		if (runm > longrunm) longrunm = runm;
 
+		string ret = "";
 		if (!i) return "";
-		if ((longrun > 25) || (longrun > 8 && ((ascii * 100) /
+		if (_dns.find("startapp") != string::npos ||
+		    _sni.find("startapp") != string::npos) {
+			if ((longrunm > 30) || (longrunm > 5 && ((asciim * 100) /
+						     (str.length() -
+						      late_startm)) > 95)) {
+				if (late_startm == 0) ret += ss.str();
+				else ret += ss.str().substr(0, late_startm) + " "
+					+ ss.str().substr(late_startm) + " ";
+			}
+		}
+
+		if ((longrun > 25) || (longrun > 5 && ((ascii * 100) /
 						     (str.length() -
 						      late_start)) > 85)) {
-			if (late_start == 0) return str;
-			return str.substr(0, late_start) + " " + str.substr(late_start) + " ";
+			if (late_start == 0) ret += str;
+			else ret += str.substr(0, late_start) + " " + str.substr(late_start) + " ";
 		}
-		return "";
+		return ret;
+	}
+
+	virtual bool is_decent_char(char c) {
+		return isalnum(c) || isspace(c) || c == 0x00 || c == '\xFF'
+			    || c == ',' || c == '{' || c == '}' ||
+			    c == '.' ||
+			    c == '&' || c == '=' || c == ':' || c == '"' ||
+			    c == '$' || c == '!' || c == '%' || c == '-' ||
+			    c == '_' || c == '[' || c == ']' || c == '(' ||
+			    c == ')' || c == '/' || c == '\\' || c == '\'';
 	}
 
 	virtual void base64_init() {
@@ -260,10 +329,10 @@ public:
 		}
 		_base64['+'] = i++;
 		_base64['/'] = i++;
-	}
-
-	virtual bool is_base64(char c) {
-		return _base64.count(c);
+		for (size_t c = 0; c < 256; ++c) {
+			_decent_char[c] = is_decent_char((char) c);
+			_is_base64_char[c] = _base64.count((char) c);
+		}
 	}
 
 	virtual void hash(const string &data, string* digest) {
@@ -331,6 +400,8 @@ public:
 	int _mood;
 	string _dir;
 	static map<char, int> _base64;
+	bool _decent_char[256];
+	bool _is_base64_char[256];
 };
 
 }  // namespace sawdust

@@ -23,6 +23,10 @@ namespace sawdust {
 class IDSearchProcessor : public IProcessor {
 public:
 	IDSearchProcessor(const string& device_file) {
+
+		_productions.push_back(Config::_()->gets("p1"));
+		_productions.push_back(Config::_()->gets("p2"));
+
 		vector<string> lines;
 		if (device_file.empty()) return;
 		Fileutil::read_file(device_file, &lines);
@@ -143,6 +147,7 @@ virtual int Base64encode(char *encoded, const char *str, int len) {
 				Logger::error("zero length for % in %",
 					      x.first, packet->_digest);
 			}
+
 			size_t pos = packet->_data.find(x.second);
 			if (pos != string::npos) {
 				cout << packet->_time << ","
@@ -185,6 +190,10 @@ protected:
 					   &lat, &lon);
 			number_spread(3, lat, "latitude");
 			number_spread(3, lon, "longitude");
+			for (int i = 3; i < 6; ++i) {
+				raw_gps("latitude", lat, i);
+				raw_gps("longitude", lon, i);
+			}
 		} else if (key == "fingerprint") {
 			string a,b,c,d,e;
 			Tokenizer::extract("%/%/%:%/%/%:%/%",
@@ -230,11 +239,37 @@ protected:
 				_pii[Logger::stringify("%_%", key, i++)] = lower;
 				_pii[Logger::stringify("%_%", key, i++)] =
 				    ss.str();
+				_pii[Logger::stringify("just_testing", key, i++)] =
+				    idk_string((unsigned char *) ss.str().c_str(),
+						ss.str().length());
+				_pii[Logger::stringify("%_%", key, i++)] =
+				    ss.str();
 				_pii[Logger::stringify("%_%", key, i++)] =
 				    Tokenizer::trimout(lower, ":");
 				_pii[Logger::stringify("%_%_upper", key, i++)] = upper;
 				_pii[Logger::stringify("%_%_upper", key, i++)] =
 				    Tokenizer::trimout(upper, ":");
+			}
+		} else if (key == "hwid") {
+			// use _productions id.
+			for (auto &x : _productions) {
+				string preimage = _pii[key] + x;
+				unsigned char md5hash[MD5_DIGEST_LENGTH];
+				unsigned char hash[SHA_DIGEST_LENGTH];
+				MD5((const unsigned char* ) preimage.c_str(),
+				     preimage.length(),
+				     md5hash);
+				SHA1((const unsigned char* ) preimage.c_str(),
+				     preimage.length(),
+				     hash);
+				_pii[Logger::stringify("hwid_md5_%", x)]
+				    = Logger::hexify(md5hash, MD5_DIGEST_LENGTH);
+				_pii[Logger::stringify("hwid_md5_%_lower", x)]
+				    = Logger::lower_hexify(md5hash, MD5_DIGEST_LENGTH);
+				_pii[Logger::stringify("hwid_sha1_%", x)]
+				    = Logger::hexify(hash, SHA_DIGEST_LENGTH);
+				_pii[Logger::stringify("hwid_sha1_%_lower", x)]
+				    = Logger::lower_hexify(hash, SHA_DIGEST_LENGTH);
 			}
 		} else if (key == "aaid") {
 			map<string, string> perms;
@@ -264,18 +299,6 @@ protected:
 				if (upper != x.second) {
 					_pii[x.first + "_upper"] = upper;
 				}
-			}
-		} else if (key == "imei") {
-			CSVTable imsi;
-			imsi.stream("imsiimei.csv");
-
-			vector<string> data;
-			while (imsi.get_next_row(&data)) {
-				if (data[1] == value) {
-					_pii["imsi"] = data[0];
-					break;
-				}
-				data.clear();
 			}
 		} else {
 			string upper;
@@ -315,6 +338,79 @@ protected:
 			--pos;
 		}
 		assert(0);
+	}
+
+	virtual void raw_gps(const string& name,
+			     const string& val,
+			     int digits) {
+		double value = atof(val.c_str());
+		double exp = 1;
+		for (int i = 0; i < digits; ++i) {
+			exp *= 10;
+		}
+		value *= exp;
+		value = (int) value;
+		double value2 = (int) value;
+		if (value2 > 0) ++value2;
+		if (value2 < 0) --value2;
+		value /= exp;
+		value2 /= exp;
+		Logger::info("% % % % % %", name, val, digits, value, value2,
+			     exp);
+		string prefix = Logger::stringify("%_%", name, digits);
+		raw_gps_impl(prefix, value);
+		raw_gps_impl(prefix + "_round", value2);
+
+	}
+
+	virtual string idk_string(unsigned char* c, size_t len) {
+		string retval = "";
+
+		for (size_t i = 0; i < len; ++i) {
+			if (c[i] < 128) {
+				retval += c[i];
+			} else {
+				retval += ((char) 0xef);
+				retval += ((char) 0xbf);
+				retval += ((char) 0xbd);
+			}
+		}
+		return retval;
+	}
+
+	virtual string java_string(unsigned char* c, size_t len) {
+		string retval = "";
+
+		for (size_t i = 0; i < len; ++i) {
+			if (c[i] < 128) {
+				retval += c[i];
+			} else if (c[i] < 192) {
+				retval += ((char) 194);
+				retval += c[i];
+			} else {
+				retval += ((char) 195);
+				retval += c[i] - 64;
+			}
+		}
+		return retval;
+	}
+
+	virtual void raw_gps_impl(const string& name,
+				  double value) {
+		unsigned char c1[sizeof(double)], c2[sizeof(double)];
+		memcpy(c1, &value, sizeof(double));
+		for (int i = 0; i < sizeof(double); ++i) {
+			c2[sizeof(double) - 1 - i] = c1[i];
+		}
+		_pii[Logger::stringify("%_%_bin_ord1", name, value)] =
+		    string((char *) c1, sizeof(double));
+		_pii[Logger::stringify("%_%_bin_ord2", name, value)] =
+		    string((char *) c2, sizeof(double));
+
+		string hex = Logger::hexify((unsigned char *) c1, sizeof(double));
+		_pii[Logger::stringify("%_%_hex_ord1", name, value)] = hex;
+		hex = Logger::hexify((unsigned char *) c2, sizeof(double));
+		_pii[Logger::stringify("%_%_hex_ord2", name, value)] = hex;
 	}
 
 	virtual string number_spread(int after, const string& value,
@@ -372,6 +468,7 @@ protected:
 
 	string _match;
 	map<string, string> _pii;
+	vector<string> _productions;
 };
 
 }  // namespace sawdust

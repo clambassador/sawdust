@@ -31,6 +31,11 @@ public:
 	static string get_database(const string& app,
 			           const string& version,
 			           const string& time) {
+		if (version.empty()) {
+			assert(time.empty());
+			return Config::_()->gets("packet_database")
+			    + "/" + app;
+		}
 		return Config::_()->gets("packet_database")
 		    + "/" + make_key(app, version, time);
 	}
@@ -57,16 +62,24 @@ public:
 		_app = app;
 		_version = version;
 		_device = device;
-		assert(argc == 0);
 		string database = get_database(app, version, time);
-		if (check(app, version, time)) exit(0);  // already processed;
+		if (argc == 0 && check(app, version, time)) exit(0);  // already processed;
 
 		_packetdb.open(database,
 			       ios_base::out);
+		_unaffiliateddb.open(get_database("unaffiliated", "", ""),
+				     ios_base::app);
 	}
 
 	void process(Packet* packet) {
 		packet->save();
+		Logger::info("%,%,%,%,%,%,%,%", packet->_app, packet->_ip,
+			     packet->_sni, packet->_dns, packet->_port, _app,
+			     packet->_full_digest, packet->_app != _app);
+		if (packet->_app == "") {
+			_unaffiliateddb << packet->_digest << endl
+			                << packet->_full_digest << endl;
+		}
 		if (packet->_app != _app) return;
 		_packetdb << packet->_digest << endl
 		          << packet->_full_digest << endl;
@@ -78,6 +91,7 @@ public:
 
 protected:
 	ofstream _packetdb;
+	ofstream _unaffiliateddb;
 };
 
 }  // namespace sawdust
