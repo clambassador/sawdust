@@ -355,8 +355,6 @@ protected:
 		if (value2 < 0) --value2;
 		value /= exp;
 		value2 /= exp;
-		Logger::info("% % % % % %", name, val, digits, value, value2,
-			     exp);
 		string prefix = Logger::stringify("%_%", name, digits);
 		raw_gps_impl(prefix, value);
 		raw_gps_impl(prefix + "_round", value2);
