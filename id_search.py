@@ -48,7 +48,6 @@ for key in d:
 		report(violations, key, data, d[key][data], 'routermac')
 		report(violations, key, data, d[key][data], 'email')
 		report(violations, key, data, d[key][data], 'androidid')
-		report(violations, key, data, d[key][data], 'androidid')
 		report(violations, key, data, d[key][data], 'phone')
 		report(violations, key, data, d[key][data], 'imei')
 		report(violations, key, data, d[key][data], 'hwid')
