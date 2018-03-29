@@ -55,6 +55,49 @@ bool timestamp_lt(const string& a, const string& b) {
 	return false;
 }
 
+string lumen_packet_id(const string& row, bool replace) {
+	string y = row;
+	string x, z;
+	if (!replace) {
+		Tokenizer::extract("%bytes total, % written here%",
+			   y, &x, nullptr, &z);
+	} else {
+		Tokenizer::extract("%bytes raw, % processed%",
+			   y, &x, nullptr, &z);
+	}
+
+	return x + z;
+}
+
+void cross_reference_times(const vector<string> data,
+			   const int year,
+			   map<string, string>* in,
+			   map<string, string>* out) {
+	const string in_line = "I Haystack.Flow: Inbound connection contents";
+	const string out_line = "I Haystack.Flow: Outbound connection contents";
+
+	for (const auto &x : data) {
+		if (x.find(in_line) != string::npos) {
+			string y = lumen_packet_id(x, true);
+			string date, time, match;
+			Tokenizer::extract("% % %Haystack.Flow: %",
+					   y, &date, &time,
+					   nullptr, &match);
+			(*in)[match] = Logger::stringify("% % %",
+							 year, date, time);
+		}
+		if (x.find(out_line) != string::npos) {
+			string date, time, match;
+			string y = lumen_packet_id(x, true);
+			Tokenizer::extract("% % %Haystack.Flow: %",
+					   y, &date, &time,
+					   nullptr, &match);
+			(*out)[match] = Logger::stringify("% % %", year,
+							  date, time);
+		}
+	}
+}
+
 int main(int argc, char** argv) {
 	Config::_()->load("sawdust.cfg");
 	string devfile = "";
@@ -102,6 +145,7 @@ int main(int argc, char** argv) {
 		return 0;
 	}
 	bool side_file = false;
+	int year = 2017;
 	if (!time.empty()) {
 		if (timestamp_lt(time, "20180227205300")) {
 			// no side_file
@@ -110,6 +154,9 @@ int main(int argc, char** argv) {
 		} else {
 			side_file = true;
 		}
+		stringstream ss;
+		ss << time.substr(0, 4);
+		ss >> year;
 	}
 	cur->init(app, version, device, time, argc - 5, argv + 5);
 
@@ -152,15 +199,15 @@ int main(int argc, char** argv) {
 			string dir;
 			for (auto &x : headers) {
 				string data;
-				Mood mood(app);
+				Mood mood(app, year);
 				Fileutil::read_file(argv[1], &data);
+				mood.consider(data);
 				while (true) {
 					int tid = 0;
 					string tmp;
 					int ret = Tokenizer::extract("% I " + x.second + "%",
 						  	     data, &tmp, &post);
 					if (ret < 2) break;
-					mood.consider(tmp);
 					Tokenizer::last_token(tmp, " ", &tid);
 					ret = Tokenizer::extract(
 						"%" + Logger::stringify("%", tid) + " I " + footer + "%",
@@ -170,14 +217,32 @@ int main(int argc, char** argv) {
 						Logger::error("Parse error in %", filename);
 						continue;
 					}
-					Packet packet(message, tid, mood(),
-						      x.first);
+					uint64_t ts = 0;
+					Tokenizer::extract("%(started %)%",
+							   message,
+							   nullptr, &ts,
+							   nullptr);
+					if (!ts)
+						ts = mood.last_timestamp(message);
+
+					Packet packet(message, tid, mood(ts),
+						      x.first, year);
 					if (packet.valid()) {
 						cur->process(&packet);
 					}
 				}
 			}
 		} else {
+			Mood mood(app, year);
+			map<string, string> in, out;
+			{
+				string data;
+				vector<string> lines;
+				Fileutil::read_file(argv[1], &data);
+				Tokenizer::split(data, "\n", &lines);
+				mood.consider(data);
+				cross_reference_times(lines, year, &in, &out);
+			}
 			string root = argv[1];
 			root = root.substr(0, root.length() - 3);
 			string lumen_file = root + "lumen";
@@ -203,13 +268,25 @@ int main(int argc, char** argv) {
 				if (data[i].find(out_header) != string::npos) dir = "O";
 				size_t j = i + 1;
 				stringstream ss;
+				uint64_t ts;
+				Tokenizer::extract("%(started %)", data[j],
+						   nullptr, &ts);
+				string y = lumen_packet_id(data[j], false);
 
+				string time;
+				if (dir == "I" && in.count(y)) time = in[y];
+				if (dir == "O" && out.count(y)) time = out[y];
+				if (time == "") {
+					time = "0";
+				}
 				while (data[j] != footer) {
 					ss << data[j] + '\n';
 					++j;
 					assert(j < data.size());
 				}
-				Packet packet(ss.str(), dir);
+				Packet packet(ss.str(), dir,
+					      mood.timestamp(time),
+					      time);
 				if (packet.valid()) {
 					cur->process(&packet);
 				}

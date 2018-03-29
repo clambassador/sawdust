@@ -5,7 +5,11 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <cstring>
 #include <openssl/sha.h>
+#include <openssl/aes.h>
+#include <openssl/evp.h>
+#include <sys/stat.h>
 
 #include "ib/config.h"
 #include "ib/fileutil.h"
@@ -29,7 +33,8 @@ public:
 	}
 
 	Packet(const string& raw, int tid, int mood,
-	       const string& dir) : _tls(false), _mood(mood), _dir(dir) {
+	       const string& dir, int year) : _tls(false), _mood(mood),
+			_dir(dir), _year(year) {
 		pull_packet(raw, tid, true);
 	}
 
@@ -37,8 +42,8 @@ public:
 		load(file);
 	}
 
-	Packet(const string& raw, const string& dir) :
-			_mood(2), _dir(dir) {
+	Packet(const string& raw, const string& dir, int mood,
+	       const string& time) : _time(time), _mood(mood), _dir(dir) {
 		pull_packet(raw, -1, false);
 	}
 
@@ -48,14 +53,14 @@ public:
 		Logger::info("%", _data);
 	}
 
-	virtual void save() {
-		save(_raw, &_digest);
-		save(_data, &_full_digest);
-	}
-
 	virtual void hash() {
 		hash(_raw, &_digest);
 		hash(_data, &_full_digest);
+	}
+
+	virtual void save() {
+		save(_raw, &_digest);
+		save(_data, &_full_digest);
 	}
 
 	virtual void get(const string& raw, const string& name, string* to) {
@@ -85,12 +90,13 @@ public:
 			}
 		}
 		string rawheader = raw.substr(0, pos);
-		string time, date;
-		if (Tokenizer::extract("%\n% % %", rawheader, nullptr, &date, &time, nullptr)
+		string time, date; string test1, test2;
+		if (Tokenizer::extract("%\n% % %", rawheader, &test1, &date,
+				       &time, &test2)
 		    < 3) {
 			assert(tid == -1);
-		} else {
-			_time = date + " " + time;
+		} else if (_time == "") {
+			_time = Logger::stringify("% % %", _year, date, time);
 		}
 		get(rawheader, "dns", &_dns);
 		get(rawheader, "sni", &_sni);
@@ -302,6 +308,33 @@ public:
 			if (late_start == 0) ret += str;
 			else ret += str.substr(0, late_start) + " " + str.substr(late_start) + " ";
 		}
+		if (str.length() > 40) {
+			EVP_CIPHER_CTX *ctx;
+			int r;
+			int len = 0;
+			unsigned char* out_enc = (unsigned char*)
+			    malloc(str.length() + 32);
+			memset(out_enc, 0, str.length() + 32);
+
+			ctx = EVP_CIPHER_CTX_new();
+			assert(ctx);
+			r = EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(),
+					   NULL,
+					   (uint8_t*)
+					   Config::_()->gets("aes_key1").c_str(),
+					   (uint8_t*) _iv);
+			r = EVP_DecryptUpdate(ctx, out_enc, &len,
+					  (uint8_t*) str.c_str(),
+					  str.length());
+
+			r = EVP_DecryptFinal_ex(ctx, out_enc + len, &len);
+			EVP_CIPHER_CTX_free(ctx);
+			if (r) {
+				ret += Tokenizer::hex_unescape(
+				    string((char*) out_enc, str.length()));
+			}
+			free (out_enc);
+		}
 		return ret;
 	}
 
@@ -333,31 +366,47 @@ public:
 			_decent_char[c] = is_decent_char((char) c);
 			_is_base64_char[c] = _base64.count((char) c);
 		}
+		memset(_iv, 0, 16);
+
 	}
 
 	virtual void hash(const string &data, string* digest) {
 		unsigned char hash[SHA_DIGEST_LENGTH];
-		SHA1((const unsigned char* ) data.c_str(), data.length(), hash);
+		Marshalled me(_from, _to, _dir, _dns, _sni,
+			      _app, _time, _ip, _port, _tls, _length, _valid,
+			      _mood);
+
+		SHA1((const unsigned char* ) (me.str() + data).c_str(),
+		     me.str().length() + data.length(), hash);
 		*digest = Logger::hexify(hash, SHA_DIGEST_LENGTH);
 	}
 
 	virtual void save(const string &data, string* digest) {
 		if (_loaded) return;
 		unsigned char hash[SHA_DIGEST_LENGTH];
-		SHA1((const unsigned char* ) data.c_str(), data.length(), hash);
+		Marshalled me(_from, _to, _dir, _dns, _sni,
+			      _app, _time, _ip, _port, _tls, _length, _valid,
+			      _mood);
+
+		SHA1((const unsigned char* ) (me.str() + data).c_str(),
+		     me.str().length() + data.length(), hash);
 		*digest = Logger::hexify(hash, SHA_DIGEST_LENGTH);
-		ofstream fout(Config::_()->gets("packets") + "/" + *digest,
+		stringstream ss;
+		ss << Config::_()->gets("packets");
+		for (int i = 0; i < 5; ++i) {
+			ss << "/" <<  (*digest)[i];
+			mkdir(ss.str().c_str(), S_IRWXU);
+		}
+
+		ofstream fout(ss.str() +  "/" + *digest,
 			      ios::out | ios::binary);
 		if (!fout.good()) return;
 		fout.write(data.c_str(), data.length());
 		fout.close();
 
-		Marshalled me(_from, _to, _dir, _dns, _sni,
-			      _app, _time, _ip, _port, _tls, _length, _valid,
-			      _mood, _digest, _full_digest);
-		ofstream fheader(Config::_()->gets("packets") + "/" + *digest
-			      + ".h",
+		ofstream fheader(ss.str() + "/" + *digest + ".h",
 			      ios::out | ios::binary);
+		me.push(_digest, _full_digest);
 		if (!fheader.good()) return;
 		fheader.write(me.str().c_str(), me.str().length());
 		fheader.close();
@@ -365,18 +414,23 @@ public:
 
 	virtual void load(const string &filename) {
 		_loaded = true;
-		ifstream fheader(Config::_()->gets("packets") + "/" +
+		stringstream ss;
+		for (int i = 0; i < 5; ++i) {
+			ss << string("/") << filename[i];
+		}
+
+		ifstream fheader(Config::_()->gets("packets") + ss.str() + "/" +
 				 filename + ".h");
 		assert(fheader.good());
 		string data;
-		Fileutil::read_file(Config::_()->gets("packets") + "/" +
+		Fileutil::read_file(Config::_()->gets("packets") + ss.str() + "/" +
 		                    filename + ".h", &data);
 		Marshalled me;
 		me.data(data);
 		me.pull(&_from, &_to, &_dir, &_dns, &_sni,
 			&_app, &_time, &_ip, &_port, &_tls, &_length, &_valid,
 			&_mood, &_digest, &_full_digest);
-		Fileutil::read_file(Config::_()->gets("packets") + "/" +
+		Fileutil::read_file(Config::_()->gets("packets") + ss.str() + "/" +
 				    filename, &_data);
 		_raw = _data;
 	}
@@ -400,8 +454,11 @@ public:
 	int _mood;
 	string _dir;
 	static map<char, int> _base64;
-	bool _decent_char[256];
-	bool _is_base64_char[256];
+	static bool _decent_char[256];
+	static bool _is_base64_char[256];
+	static char _iv[AES_BLOCK_SIZE];
+
+	int _year;
 };
 
 }  // namespace sawdust
