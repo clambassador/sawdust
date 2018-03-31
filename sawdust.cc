@@ -158,7 +158,11 @@ int main(int argc, char** argv) {
 		ss << time.substr(0, 4);
 		ss >> year;
 	}
-	cur->init(app, version, device, time, argc - 5, argv + 5);
+	try {
+		cur->init(app, version, device, time, argc - 5, argv + 5);
+	} catch (string s) {
+		if (s == "overboard") return 0;  // clean up
+	}
 
 	string message, post, working;
 	set<string> seen;
@@ -170,11 +174,10 @@ int main(int argc, char** argv) {
 	                  + "/" + key;
 
 	ifstream fin(database);
-	if (SaveProcessor::check(app, version, time)) {
+	string packet_list = SaveProcessor::getdb(app, version, time);
+	if (!packet_list.empty()) {
 		vector<string> packets;
-		Fileutil::read_file(SaveProcessor::get_database(app, version,
-								time),
-				    &packets);
+		Tokenizer::split(packet_list, "\n", &packets);
 		assert(packets.size());
 		assert(packets.back() == "---");
 		packets.pop_back();

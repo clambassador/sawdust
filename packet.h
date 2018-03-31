@@ -6,6 +6,7 @@
 #include <sstream>
 #include <string>
 #include <cstring>
+#include <leveldb/db.h>
 #include <openssl/sha.h>
 #include <openssl/aes.h>
 #include <openssl/evp.h>
@@ -24,6 +25,8 @@ namespace sawdust {
 
 class Packet {
 public:
+	static leveldb::DB* _db;
+
 	Packet(const string& from, const string& to,
 	       const string& data, bool tls,
 	       int mood, const string& dir)
@@ -391,47 +394,23 @@ public:
 		SHA1((const unsigned char* ) (me.str() + data).c_str(),
 		     me.str().length() + data.length(), hash);
 		*digest = Logger::hexify(hash, SHA_DIGEST_LENGTH);
-		stringstream ss;
-		ss << Config::_()->gets("packets");
-		for (int i = 0; i < 5; ++i) {
-			ss << "/" <<  (*digest)[i];
-			mkdir(ss.str().c_str(), S_IRWXU);
-		}
+		_db->Put(leveldb::WriteOptions(), *digest, data);
 
-		ofstream fout(ss.str() +  "/" + *digest,
-			      ios::out | ios::binary);
-		if (!fout.good()) return;
-		fout.write(data.c_str(), data.length());
-		fout.close();
-
-		ofstream fheader(ss.str() + "/" + *digest + ".h",
-			      ios::out | ios::binary);
 		me.push(_digest, _full_digest);
-		if (!fheader.good()) return;
-		fheader.write(me.str().c_str(), me.str().length());
-		fheader.close();
+		_db->Put(leveldb::WriteOptions(), *digest + ".h", me.str());
 	}
 
 	virtual void load(const string &filename) {
 		_loaded = true;
-		stringstream ss;
-		for (int i = 0; i < 5; ++i) {
-			ss << string("/") << filename[i];
-		}
 
-		ifstream fheader(Config::_()->gets("packets") + ss.str() + "/" +
-				 filename + ".h");
-		assert(fheader.good());
-		string data;
-		Fileutil::read_file(Config::_()->gets("packets") + ss.str() + "/" +
-		                    filename + ".h", &data);
+		string header;
+		_db->Get(leveldb::ReadOptions(), filename, &_data);
+		_db->Get(leveldb::ReadOptions(), filename + ".h", &header);
 		Marshalled me;
-		me.data(data);
+		me.data(header);
 		me.pull(&_from, &_to, &_dir, &_dns, &_sni,
 			&_app, &_time, &_ip, &_port, &_tls, &_length, &_valid,
 			&_mood, &_digest, &_full_digest);
-		Fileutil::read_file(Config::_()->gets("packets") + ss.str() + "/" +
-				    filename, &_data);
 		_raw = _data;
 	}
 
