@@ -4,3 +4,12 @@ permission_processor
 sawdust
 string_search_dump
 .sconsign.dblite
+batch_save
+batch_sawdust
+dns_resolve
+keymap_a_packet
+packet_dump
+packet_grep
+packet_process
+payload_grep
+process_a_packet
