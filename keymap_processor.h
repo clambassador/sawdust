@@ -30,7 +30,7 @@ public:
 		_version = version;
 		_device = device;
 		assert(argc == 0);
-	        cout << "app,version,hwid,direction,dest,tls,digest,key,value" << endl;
+	//        cout << "app,version,hwid,direction,dest,tls,digest,key,value" << endl;
 	}
 
 	void process(Packet* packet) {
@@ -69,6 +69,8 @@ protected:
 	}
 
 	void observe(Packet* packet, const string& key, const string& value) {
+		if (Logger::is_binary(key) || Logger::is_binary(value))
+			return;
 	        cout << _app << ","
 		     << _version << ","
 		     << _device << ","

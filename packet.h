@@ -56,6 +56,14 @@ public:
 		Logger::info("%", _data);
 	}
 
+	virtual void trace(bool header, bool outgoing_only) {
+		if (outgoing_only && _dir == "I") return;
+
+		if (header) cout << _app << "," << _dns << "," << _ip << "," <<
+			_full_digest << endl;
+		cout << _data.substr(0, _data.length() / 2) << endl << endl;
+	}
+
 	virtual void hash() {
 		hash(_raw, &_digest);
 		hash(_data, &_full_digest);
@@ -166,27 +174,28 @@ public:
 		}
 		_data = Tokenizer::hex_unescape(_raw);
 
-		add_base64();
+		add_base64(_data, 4);
 		hash();
 		save();
 	}
 
-	virtual void add_base64() {
+	virtual void add_base64(const string& data, int depth) {
 		if (_base64.empty()) {
 			base64_init();
 		}
 		stringstream ss;
 		stringstream add;
 		bool go = false;
-		int last_base = 0;
-		string rev = _data;
+		string rev = data;
 		reverse(rev.begin(), rev.end());
-		_data += rev;
+		string search_data = data + "\r \r" + rev + "\r \r";
+		search_data += Tokenizer::replace(
+		    Tokenizer::replace(search_data, "_", "/"), "-", "+");
 
-		for (size_t i = 0; i < _data.length(); ++i) {
-			if (_data[i] == '=') {
-				ss << _data[i];
-				last_base = i;
+		for (size_t i = 0; i < search_data.length(); ++i) {
+			size_t j = i + 1;
+			if (search_data[i] == '=') {
+				ss << search_data[i];
 				go = true;
 			} else if (go) {
 				if (ss.str().length()) add << base64_try(ss.str());
@@ -194,30 +203,45 @@ public:
 					add << base64_try(ss.str().substr(1));
 				if (ss.str().length() > 2)
 					add << base64_try(ss.str().substr(2));
+				if (ss.str().length() > 3)
+					add << base64_try(ss.str().substr(3));
 				ss.str("");
 				go = false;
 			}
-			if (_is_base64_char[(size_t) _data[i]]) {
-				ss << _data[i];
-				last_base = i;
-			} else if (_data[i] == '\\') {
+			if (_is_base64_char[(size_t) search_data[i]]) {
+				ss << search_data[i];
+			} else if (search_data[i] == '\\') {
 				++i;
-			} else if (_data[i] == '"') {
+			} else if (search_data[i] == '"') {
 				go = true;
-			} else if (_data[i] == '&') {
+			} else if (search_data[i] == '&') {
 				go = true;
-			} else if (_data[i] == ';') {
+			} else if (search_data[i] == ';') {
 				go = true;
+			} else if (search_data[i] == ':') {
+				go = true;
+			} else if (search_data[i] == '}') {
+				go = true;
+			} else if (search_data[i] == '\r') {
+				if (i + 2 < search_data.length()
+				    && search_data[i + 1] == ' '
+				    && search_data[i + 2] == '\r')
+					go = true;
 			}
 		}
 		if (ss.str().length()) add << base64_try(ss.str());
 		if (ss.str().length() > 1) add << base64_try(ss.str().substr(1));
 		if (ss.str().length() > 2) add << base64_try(ss.str().substr(2));
+		if (ss.str().length() > 3) add << base64_try(ss.str().substr(3));
 		_data += add.str();
+		if (add.str().length() && depth) {
+			add_base64(add.str(), depth - 1);
+		}
 	}
 
 	virtual string base64_try(string s) {
 		if (s.empty()) return "";
+		bool onit = false;
 		static const int B64index [256] = {
 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0, 0,  0,  0,  0,  0,  0,
 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0, 0,  0,  0,  0,  0,  0,
@@ -249,29 +273,40 @@ public:
 
 		int longrun = 0;
 		int longrunm = 0;
+		int longrund = 0;
 		int ascii = 0;
 		int asciim = 0;
+		int asciid = 0;
 		int run = 0;
 		int runm = 0;
+		int rund = 0;
 		int i;
 		int late_start = -1;
 		int late_startm = -1;
+		int late_startd = -1;
 		string mask1 = Config::_()->gets("mask1");
 		string mask2 = Config::_()->gets("mask2");
+		string mask_1 = Config::_()->gets("mask_1");
 		if (mask1.empty() || mask2.empty()) {
 			mask1 = string("\0", 1);
 			mask2 = string("\0", 1);
 		}
+		if (mask_1.empty()) mask_1 = string("\0", 1);
 		int i1 = 0;
 		int i2 = 0;
+		int i3 = 0;
 		stringstream ss;
+		stringstream ssd;
 
 		for (i = 0; i < str.length(); ++i) {
 			char c = str[i];
 			char cm = str[i] ^ mask1[i1] ^ mask2[i2];
+			char d = str[i] ^ mask_1[i3];
 			ss << cm;
+			ssd << d;
 			i1 = (i1 + 1) % mask1.length();
 			i2 = (i2 + 1) % mask2.length();
+			i3 = (i3 + 1) % mask_1.length();
 			if (_decent_char[(size_t) c]) {
 				if (late_start == -1) late_start = i;
 				++ascii;
@@ -288,14 +323,30 @@ public:
 				if (runm > longrunm) longrunm = runm;
 				runm = 0;
 			}
+			if (_decent_char[(size_t) d]) {
+				if (late_startd == -1) late_startd = i;
+				++asciid;
+				++rund;
+			} else {
+				if (rund > longrund) longrund = rund;
+				rund = 0;
+			}
 		}
 		if (run > longrun) longrun = run;
 		if (runm > longrunm) longrunm = runm;
+		if (rund > longrund) longrund = rund;
 
 		string ret = "";
 		if (!i) return "";
 		if (_dns.find("startapp") != string::npos ||
 		    _sni.find("startapp") != string::npos) {
+			if ((longrund > 30) || (longrund > 5 && ((asciid * 100) /
+						     (str.length() -
+						      late_startd)) > 95)) {
+				if (late_startd == 0) ret += ssd.str();
+				else ret += ssd.str().substr(0, late_startd) + " "
+					+ ssd.str().substr(late_startd) + " ";
+			}
 			if ((longrunm > 30) || (longrunm > 5 && ((asciim * 100) /
 						     (str.length() -
 						      late_startm)) > 95)) {
@@ -336,8 +387,37 @@ public:
 				ret += Tokenizer::hex_unescape(
 				    string((char*) out_enc, str.length()));
 			}
+
+			int i = 1;
+			while (!Config::_()->gets("aes", i).empty()) {
+				string key = Logger::dehexify(
+				    Config::_()->gets("aes", i));
+				string iv = Logger::dehexify(
+				    Config::_()->gets("iv", i));
+				++i;
+				memset(out_enc, 0, str.length() + 32);
+				ctx = EVP_CIPHER_CTX_new();
+				assert(ctx);
+				r = EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(),
+					   NULL,
+					   (uint8_t*) key.c_str(),
+					   (uint8_t*) iv.c_str());
+				len = 0;
+				r = EVP_DecryptUpdate(ctx, out_enc, &len,
+					  (uint8_t*) str.c_str(),
+					  str.length());
+
+				r = EVP_DecryptFinal_ex(ctx, out_enc + len, &len);
+				EVP_CIPHER_CTX_free(ctx);
+				if (r) {
+					ret += Tokenizer::hex_unescape(
+					    string((char*) out_enc, str.length()));
+				}
+			}
 			free (out_enc);
 		}
+		if (s.find("hUR") != string::npos && s.find("hUR") != 0)
+			return ret + base64_try(s.substr(s.find("hUR")));
 		return ret;
 	}
 
@@ -401,6 +481,7 @@ public:
 	}
 
 	virtual void load(const string &filename) {
+		assert(_db);
 		_loaded = true;
 
 		string header;

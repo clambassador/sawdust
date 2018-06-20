@@ -52,6 +52,9 @@ for key in d:
 		report(violations, key, data, d[key][data], 'imei')
 		report(violations, key, data, d[key][data], 'hwid')
 		report(violations, key, data, d[key][data], 'gsfid')
+		report(violations, key, data, d[key][data], 'package_dump')
+		report(violations, key, data, d[key][data], 'invasive')
+		report(violations, key, data, d[key][data], 'real_name')
 		if 'geolatlon' in data:
 			lon = True
 			lat = True

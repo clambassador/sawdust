@@ -37,6 +37,5 @@ int main(int argc, char** argv) {
 	string data;
 	Fileutil::read_file(argv[1], &data);
 	Packet packet("", "", data, 1, 0, "O");
-	packet.add_base64();
 	packet.trace();
 }

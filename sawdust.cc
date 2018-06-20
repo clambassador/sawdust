@@ -142,7 +142,10 @@ int main(int argc, char** argv) {
 	if (app.empty()) {
 		Logger::error("Unable to parse app name from file name. "
 			      "Use format: app-version-time.log");
-		return 0;
+		//return 0;
+		time = "99990101010101";
+		app = "*";
+		version = "1";
 	}
 	bool side_file = false;
 	int year = 2017;
@@ -175,7 +178,7 @@ int main(int argc, char** argv) {
 
 	ifstream fin(database);
 	string packet_list = SaveProcessor::getdb(app, version, time);
-	if (!packet_list.empty()) {
+	if (!packet_list.empty() && string(argv[4]) != "save") {
 		vector<string> packets;
 		Tokenizer::split(packet_list, "\n", &packets);
 		assert(packets.size());

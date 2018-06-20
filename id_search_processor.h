@@ -36,6 +36,7 @@ public:
 			if (tokens.size() == 2) {
 				if (tokens[1].empty()) continue;
 				if (tokens[1] == " ") continue;
+				if (tokens[1] == "0") continue;
 				add_search(tokens[0], tokens[1]);
 			}
 		}
@@ -49,21 +50,24 @@ public:
 			MD5((const unsigned char* ) _pii[x].c_str(),
 			     _pii[x].length(),
 			     md5hash);
-			_pii["md5_" + x] = Logger::hexify(md5hash,
+			_pii["md5_u_" + x] = Logger::hexify(md5hash,
 							  MD5_DIGEST_LENGTH);
 			_pii["md5_" + x] = Logger::lower_hexify(md5hash,
 							  MD5_DIGEST_LENGTH);
 			SHA1((const unsigned char* ) _pii[x].c_str(),
 			     _pii[x].length(),
 			     hash);
-			_pii["sha1_" + x] = Logger::hexify(hash, 20);
+			_pii["sha1_u_" + x] = Logger::hexify(hash, 20);
 			_pii["sha1_" + x] = Logger::lower_hexify(hash, 20);
 			string digest = sha256(_pii[x]);
-			_pii["sha256_" + x] = Logger::hexify(
+			_pii["sha256_u_" + x] = Logger::hexify(
 				(uint8_t *) digest.c_str(), digest.length());
 			_pii["sha256_" + x] = Logger::lower_hexify(
 				(uint8_t *) digest.c_str(), digest.length());
 		}
+		add_search("package_dump", "com.lexa.fakegps");
+		add_search("invasive", "theserver");
+		add_search("real_name", "Miwszytcgm Kjhyoucksx");
 		items.clear();
 		for (auto &x : _pii) {
 			items.push_back(x.first);
@@ -74,7 +78,13 @@ public:
 			Base64encode(
 				buf, _pii[x].c_str(), _pii[x].length());
 			_pii["base64_" + x] = buf;
+			string rev = _pii[x];
+			reverse(rev.begin(), rev.end());
+			_pii[x + "_rev"] = rev;
 		}
+
+
+
 	}
 
 /*https://opensource.apple.com/source/QuickTimeStreamingServer/QuickTimeStreamingServer-452/CommonUtilitiesLib/base64.c.  */
@@ -139,8 +149,7 @@ virtual int Base64encode(char *encoded, const char *str, int len) {
 	}
 
 	void process(Packet* packet) {
-		if (packet->_app != _app) return;
-		if (packet->_dir != "O") return;
+		if (_app != "*" && packet->_app != _app) return;
 		packet->save();
 		for (const auto &x : _pii) {
 			if (x.second.length() == 0) {
@@ -151,7 +160,7 @@ virtual int Base64encode(char *encoded, const char *str, int len) {
 			size_t pos = packet->_data.find(x.second);
 			if (pos != string::npos) {
 				cout << packet->_time << ","
-				     << _app << ","
+				     << packet->_app << ","
 				     << _version << ","
 				     << packet->_dns << ","
 				     << packet->_sni << ","
@@ -163,7 +172,8 @@ virtual int Base64encode(char *encoded, const char *str, int len) {
 				     << packet->_digest << ","
 				     << packet->_full_digest << ","
 				     << packet->_mood << ","
-				     << _device
+				     << _device << ","
+				     << packet->_dir
 				     << endl;
 			}
 		}
@@ -173,6 +183,10 @@ virtual int Base64encode(char *encoded, const char *str, int len) {
 		return "outputs a list of pii that matches from packets\n";
 	}
 
+	virtual string hwid() const {
+		if (!_pii.count("hwid")) return "";
+		return _pii.at("hwid");
+	}
 protected:
 
 	virtual void add_search(const string& key, const string& value) {
@@ -237,11 +251,6 @@ protected:
 				}
 
 				_pii[Logger::stringify("%_%", key, i++)] = lower;
-				_pii[Logger::stringify("%_%", key, i++)] =
-				    ss.str();
-				_pii[Logger::stringify("just_testing", key, i++)] =
-				    idk_string((unsigned char *) ss.str().c_str(),
-						ss.str().length());
 				_pii[Logger::stringify("%_%", key, i++)] =
 				    ss.str();
 				_pii[Logger::stringify("%_%", key, i++)] =

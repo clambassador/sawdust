@@ -24,7 +24,12 @@ int main(int argc, char** argv) {
 	options.create_if_missing = false;
 	leveldb::Status status = leveldb::DB::Open(
 		options, Config::_()->gets("packetdb"), &db);
-	assert(status.ok());
+	if (!status.ok()) {
+		Logger::error("error opening %", Config::_()->gets("packetdb"));
+		Logger::error("result %", status.ToString());
+		return -1;
+	}
+
 
 	string data;
 	db->Get(leveldb::ReadOptions(), argv[1], &data);
