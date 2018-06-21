@@ -112,17 +112,38 @@ int main(int argc, char** argv) {
 	map<string, string> used_permissions;
 
 	for (auto &x : lines) {
-		size_t pos = x.find("Permission-Sensitive-UCB");
-		if (pos != string::npos) {
-			string time, date;
-			string permission, package;
-			Tokenizer::extract(
-			    "% % %Permission-Sensitive-UCB: android.permission.%:%:%",
-			    x, &date, &time, nullptr, &permission, &package, nullptr);
+        /*
+        Legacy format:
+        05-04 16:09:39.565   888  3854 I Permission-Sensitive-UCB: android.permission.READ_PHONE_STATE:edu.berkeley.icsi.devfilegen:false:checkReadPhoneState
+
+        Permission format:
+        06-20 15:44:46.736   997  1458 I DataRecorder: 10011 SVMPredict-1 android.permission.GET_ACCOUNTS:com.google.android.gms.persistent:true:com.android.launcher3:GetAccounts:00.0
+
+        */
+		size_t pos_legacy = x.find(" I Permission-Sensitive-UCB:");
+		size_t pos = x.find("SVMPredict-1 android.permission");
+
+        bool legacy_found = pos_legacy != string::npos;
+        bool perm_found = pos != string::npos;
+
+        if(legacy_found || perm_found) {
+            string time, date;
+            string permission, package;
+
+            string pattern;
+            if(legacy_found) {
+			    pattern = "% % %Permission-Sensitive-UCB: android.permission.%:%:%";
+            } else if(perm_found) {
+                pattern = "% % %SVMPredict-1 android.permission.%:%:%";
+            }
+
+            Tokenizer::extract(pattern, x,
+                               &date, &time, nullptr, &permission, &package, nullptr);
+
 			if (package == app) {
 				used_permissions[permission] = date + " " + time;
-			}
-		}
+            }
+        }
 	}
 	for (const auto &x : used_permissions) {
 		cout << app << "," << version << "," << x.first
