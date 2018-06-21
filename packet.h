@@ -188,9 +188,24 @@ public:
 		bool go = false;
 		string rev = data;
 		reverse(rev.begin(), rev.end());
-		string search_data = data + "\r \r" + rev + "\r \r";
-		search_data += Tokenizer::replace(
-		    Tokenizer::replace(search_data, "_", "/"), "-", "+");
+		ss << data << "\r \r" << rev << "\r \r";
+		size_t len = data.length();
+		string mdata = data;
+		for (int i = 0; i < len; ++i) {
+			if (mdata[i] == '_') {
+				assert(rev[len - i - 1] == '_');
+				mdata[i] = '/';
+				rev[len - i] = '/';
+			}
+			if (mdata[i] == '-') {
+				assert(rev[len - i - 1] == '-');
+				mdata[i] = '+';
+				rev[len - i] = '+';
+			}
+		}
+		ss << mdata << "\r \r" << rev << "\r \r";
+		string search_data = ss.str();
+		ss.str("");
 
 		for (size_t i = 0; i < search_data.length(); ++i) {
 			size_t j = i + 1;

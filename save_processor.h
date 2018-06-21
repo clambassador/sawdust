@@ -50,10 +50,6 @@ public:
 		if (_committed) return;
 		_committed = true;
 
-		if (_packets.str().length()) {
-			Logger::error("writing % %", _key, _packets.str().length());
-		}
-
 		_packets << "---";
 		_db->Put(leveldb::WriteOptions(), _key, _packets.str());
 
