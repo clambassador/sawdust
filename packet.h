@@ -239,7 +239,8 @@ public:
 				go = true;
 			} else if (search_data[i] == '\r') {
 				if (i + 2 < search_data.length()
-				    && search_data[i + 1] == ' '
+				    && (search_data[i + 1] == ' ' ||
+					search_data[i + 1] == '\n')
 				    && search_data[i + 2] == '\r')
 					go = true;
 			}

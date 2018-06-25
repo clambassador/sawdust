@@ -148,7 +148,8 @@ int do_log(const string& log, SaveProcessor* save) {
 	string key = app + "," + version + "," + time;
 
 	string packet_list = SaveProcessor::getdb(app, version, time);
-	if (!packet_list.empty() && packet_list != "---") {
+	if (!packet_list.empty() && packet_list != "---" &&
+	    !Config::_()->get("overwrite")) {
 	} else {
 		try {
 			save->init(app, version, device, time, 0, nullptr);
