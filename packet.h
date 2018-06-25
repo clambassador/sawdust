@@ -208,7 +208,6 @@ public:
 		ss.str("");
 
 		for (size_t i = 0; i < search_data.length(); ++i) {
-			size_t j = i + 1;
 			if (search_data[i] == '=') {
 				ss << search_data[i];
 				go = true;
@@ -257,7 +256,6 @@ public:
 
 	virtual string base64_try(string s) {
 		if (s.empty()) return "";
-		bool onit = false;
 		static const int B64index [256] = {
 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0, 0,  0,  0,  0,  0,  0,
 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,  0, 0,  0,  0,  0,  0,  0,
