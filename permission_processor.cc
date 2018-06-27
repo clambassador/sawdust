@@ -20,55 +20,6 @@ using namespace std;
 using namespace ib;
 using namespace sawdust;
 
-string instrumented_perms [36] = {
-    "READ_CONTACTS",
-    "WRITE_CONTACTS",
-    "READ_PHONE_STATE",
-    "RECORD_AUDIO",
-    "CALL_PHONE",
-    "PROCESS_OUTGOING_CALLS",
-    "ACCESS_WIFI_STATE",
-    "ACCESS_NETWORK_STATE",
-    "CAMERA",
-    "GET_PACKAGE_SIZE",
-    "GET_ACCOUNTS",
-    "ACCESS_COARSE_LOCATION",
-    "ACCESS_FINE_LOCATION",
-    "READ_CALL_LOG",
-    "WRITE_CALL_LOG",
-    "RECEIVE_BOOT_COMPLETED",
-    "RECEIVE_SMS",
-    "SEND_SMS",
-    "READ_SMS",
-    "READ_EXTERNAL_STORAGE",
-    "WRITE_EXTERNAL_STORAGE",
-    "READ_CALENDAR",
-    "WRITE_CALENDAR",
-    "VIBRATE",
-    "RECEIVE_EMERGENCY_BROADCAST",
-    "RECEIVE_MMS",
-    "RECEIVE_WAP_PUSH",
-    "WRITE_SETTINGS",
-    "SYSTEM_ALERT_WINDOW",
-    "ACCESS_NOTIFICATIONS",
-    "WAKE_LOCK",
-    "ADD_VOICEMAIL",
-    "USE_SIP",
-    "USE_FINGERPRINT",
-    "BODY_SENSORS",
-    "READ_CELL_BROADCASTS"
-};
-
-bool is_instrumented(const string& perm) {
-    for(const auto &x : instrumented_perms) {
-        if(perm == x) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 int main(int argc, char** argv) {
 	string devfile = "";
 	if (argc < 2) {
@@ -92,17 +43,30 @@ int main(int argc, char** argv) {
 	string line = Tokenizer::trimout(lines[0], "[");
 	line = Tokenizer::trimout(line, "]");
     line = Tokenizer::replace(line, "'", "");
+    line = Tokenizer::replace(line, "\"", "");
 	vector<string> permissions;
 	Tokenizer::split(line, ", ", &permissions);
+    /**
+    Example, with some permissions having "maxSdkVersion"
+    ['android.permission.INTERNET', 'android.permission.ACCESS_NETWORK_STATE',
+    'android.permission.WRITE_EXTERNAL_STORAGE',
+    'android.permission.ACCESS_COARSE_LOCATION',
+    "android.permission.READ_EXTERNAL_STORAGE' maxSdkVersion='18",
+    'android.permission.GET_ACCOUNTS', 'android.permission.USE_CREDENTIALS']
+     */
 	for (auto &x : permissions) {
         size_t pos = x.find("android.permission.");
-        if(pos == 0) {       // Only look at android.permission.*, and only the instrumented ones
+        if(pos == 0) {       // Only look at android.permission.*
             string stripped_perm;
-            Tokenizer::extract("android.permission.%", x, &stripped_perm);
-
-            if(is_instrumented(stripped_perm)) {
-                declared_permissions.insert(stripped_perm);
+            
+            size_t sdk_pos = x.find("maxSdkVersion=");
+            if(sdk_pos != string::npos) {
+                Tokenizer::extract("android.permission.% maxSdkVersion%", x, &stripped_perm, nullptr);
+            } else {
+                Tokenizer::extract("android.permission.%", x, &stripped_perm);
             }
+
+            declared_permissions.insert(stripped_perm);
         }
 	}
     for(const auto &x : declared_permissions) {
