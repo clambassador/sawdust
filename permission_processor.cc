@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
 
         */
 		size_t pos_legacy = x.find(" I Permission-Sensitive-UCB:");
-		size_t pos = x.find("SVMPredict-1 android.permission");
+		size_t pos = x.find("SensitivePermission android.permission");
 
         bool legacy_found = pos_legacy != string::npos;
         bool perm_found = pos != string::npos;
