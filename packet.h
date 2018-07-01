@@ -226,6 +226,7 @@ public:
 				ss << search_data[i];
 			} else if (search_data[i] == '\\') {
 				++i;
+				if (search_data[i] == '/') ss << search_data[i];
 			} else if (search_data[i] == '"') {
 				go = true;
 			} else if (search_data[i] == '&') {
@@ -416,6 +417,28 @@ public:
 					   NULL,
 					   (uint8_t*) key.c_str(),
 					   (uint8_t*) iv.c_str());
+				len = 0;
+				r = EVP_DecryptUpdate(ctx, out_enc, &len,
+					  (uint8_t*) str.c_str(),
+					  str.length());
+
+				r = EVP_DecryptFinal_ex(ctx, out_enc + len, &len);
+				EVP_CIPHER_CTX_free(ctx);
+				if (r) {
+					ret += Tokenizer::hex_unescape(
+					    string((char*) out_enc, str.length()));
+				}
+			}
+			i = 1;
+			while (!Config::_()->gets("aes_128_ecb", i).empty()) {
+				string key = Logger::dehexify(
+				    Config::_()->gets("aes_128_ecb", i));
+				++i;
+				memset(out_enc, 0, str.length() + 16);
+				ctx = EVP_CIPHER_CTX_new();
+				assert(ctx);
+				r = EVP_DecryptInit_ex(ctx, EVP_aes_128_ecb(),
+					   NULL, (uint8_t*) key.c_str(), NULL);
 				len = 0;
 				r = EVP_DecryptUpdate(ctx, out_enc, &len,
 					  (uint8_t*) str.c_str(),

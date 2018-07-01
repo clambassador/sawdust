@@ -332,7 +332,6 @@ protected:
 			if (pos == 0) break;
 			--pos;
 		}
-		assert(0);
 	}
 
 	virtual void add_one(string* number) {
@@ -346,7 +345,6 @@ protected:
 			if (pos == 0) break;
 			--pos;
 		}
-		assert(0);
 	}
 
 	virtual void raw_gps(const string& name,
