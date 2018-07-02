@@ -12,7 +12,9 @@
 using namespace std;
 
 int main(int argc, char** argv) {
+        //Config::_()->load("/etc","sawdust.cfg");
         Config::_()->load("sawdust.cfg");
+	assert(!Config::_()->gets("packetdb").empty());
 
 	leveldb::DB* db;
 	if (argc < 2) {

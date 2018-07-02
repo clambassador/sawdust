@@ -381,9 +381,10 @@ public:
 			EVP_CIPHER_CTX *ctx;
 			int r;
 			int len = 0;
+			size_t out_enc_len = str.length() + 32;
 			unsigned char* out_enc = (unsigned char*)
-			    malloc(str.length() + 32);
-			memset(out_enc, 0, str.length() + 32);
+			    malloc(out_enc_len);
+			memset(out_enc, 0, out_enc_len);
 
 			ctx = EVP_CIPHER_CTX_new();
 			assert(ctx);
@@ -400,7 +401,7 @@ public:
 			EVP_CIPHER_CTX_free(ctx);
 			if (r) {
 				ret += Tokenizer::hex_unescape(
-				    string((char*) out_enc, str.length()));
+				    string((char*) out_enc, out_enc_len));
 			}
 
 			int i = 1;
@@ -410,7 +411,7 @@ public:
 				string iv = Logger::dehexify(
 				    Config::_()->gets("iv", i));
 				++i;
-				memset(out_enc, 0, str.length() + 32);
+				memset(out_enc, 0, out_enc_len);
 				ctx = EVP_CIPHER_CTX_new();
 				assert(ctx);
 				r = EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(),
@@ -426,7 +427,55 @@ public:
 				EVP_CIPHER_CTX_free(ctx);
 				if (r) {
 					ret += Tokenizer::hex_unescape(
-					    string((char*) out_enc, str.length()));
+					    string((char*) out_enc, out_enc_len));
+				}
+			}
+			i = 1;
+			while (!Config::_()->gets("aes_128_cbc", i).empty()) {
+				string key = Logger::dehexify(
+				    Config::_()->gets("aes_128_cbc", i));
+				string iv = Logger::dehexify(
+				    Config::_()->gets("iv_128_cbc", i));
+				++i;
+				memset(out_enc, 0, out_enc_len);
+				ctx = EVP_CIPHER_CTX_new();
+				assert(ctx);
+				r = EVP_DecryptInit_ex(ctx, EVP_aes_128_cbc(),
+					   NULL, (uint8_t*) key.c_str(),
+					   (uint8_t*) iv.c_str());
+				len = 0;
+				r = EVP_DecryptUpdate(ctx, out_enc, &len,
+					  (uint8_t*) str.c_str(),
+					  str.length());
+
+				r = EVP_DecryptFinal_ex(ctx, out_enc + len, &len);
+				EVP_CIPHER_CTX_free(ctx);
+				if (r) {
+					ret += Tokenizer::hex_unescape(
+					    string((char*) out_enc, out_enc_len));
+				}
+				uint64_t chunklen = be_number((uint8_t*) str.c_str());
+				if (chunklen < str.length() + 8) {
+					uint64_t pos = chunklen + 8;
+					chunklen = be_number(((uint8_t*) str.c_str()) + pos);
+					pos += 8;
+					if (pos + chunklen < str.length()) {
+						memset(out_enc, 0, out_enc_len);
+						ctx = EVP_CIPHER_CTX_new();
+		                                assert(ctx);
+                		                r = EVP_DecryptInit_ex(ctx, EVP_aes_128_cbc(),
+                                		           NULL, (uint8_t*) key.c_str(),
+		                                           (uint8_t*) iv.c_str());
+		                                len = 0;
+                		                r = EVP_DecryptUpdate(ctx, out_enc, &len,
+                                		          (uint8_t*) str.c_str() + pos, chunklen);
+		                                r = EVP_DecryptFinal_ex(ctx, out_enc + len, &len);
+                		                EVP_CIPHER_CTX_free(ctx);
+						if (r) {
+							ret += Tokenizer::hex_unescape(
+		                                            string((char*) out_enc, out_enc_len));
+						}
+					}
 				}
 			}
 			i = 1;
@@ -434,7 +483,7 @@ public:
 				string key = Logger::dehexify(
 				    Config::_()->gets("aes_128_ecb", i));
 				++i;
-				memset(out_enc, 0, str.length() + 16);
+				memset(out_enc, 0, str.length() + 32);
 				ctx = EVP_CIPHER_CTX_new();
 				assert(ctx);
 				r = EVP_DecryptInit_ex(ctx, EVP_aes_128_ecb(),
@@ -448,7 +497,7 @@ public:
 				EVP_CIPHER_CTX_free(ctx);
 				if (r) {
 					ret += Tokenizer::hex_unescape(
-					    string((char*) out_enc, str.length()));
+					    string((char*) out_enc, out_enc_len));
 				}
 			}
 			free (out_enc);
@@ -530,6 +579,10 @@ public:
 			&_app, &_time, &_ip, &_port, &_tls, &_length, &_valid,
 			&_mood, &_digest, &_full_digest);
 		_raw = _data;
+	}
+
+	virtual uint64_t be_number(uint8_t* data) {
+		return *((uint64_t*) data);
 	}
 
 	string _from;

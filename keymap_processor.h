@@ -35,6 +35,7 @@ public:
 
 	void process(Packet* packet) {
 		if (packet->_app != _app) return;
+		pull_header(packet);
 		pull_query(packet);
 		pull_json(packet);
 		pull_xml(packet);
@@ -118,10 +119,32 @@ protected:
         	}
 	}
 
+	void pull_header(Packet* packet) {
+	        vector<string> headers;
+		string header;
+		string tmp;
+	        Tokenizer::extract("%\n\n%", packet->_data, &header, &tmp);
+	        Tokenizer::extract_all("\n%\n\n", packet->_data, &headers);
+		headers.push_back(header);
+	        for (const auto& z : headers) {
+                	string x;
+			vector<string> lines;
+			Tokenizer::split(z, "\n", &lines);
+			for (const auto &y : lines) {
+				vector<string> pieces;
+				Tokenizer::split(y, ":", &pieces);
+				if (pieces.size() == 2) {
+					observe(packet, pieces[0], pieces[1]);
+				}
+			}
+		}
+	}
 	void pull_query(Packet* packet) {
 	        vector<string> queries;
 	        Tokenizer::extract_all("?%\4", packet->_data, &queries);
         	Tokenizer::extract_all(" %\4", packet->_data, &queries);
+	        Tokenizer::extract_all("\n&% ", packet->_data, &queries);
+	        Tokenizer::extract_all("\n\n%\n", packet->_data, &queries);
 	        for (const auto& z : queries) {
                 	string x;
         	        x = Tokenizer::replace(z, "%3D", "=");

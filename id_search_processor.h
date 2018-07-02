@@ -81,6 +81,9 @@ public:
 			string rev = _pii[x];
 			reverse(rev.begin(), rev.end());
 			_pii[x + "_rev"] = rev;
+			_pii[x + "_hex_upper"] = Logger::hexify(_pii[x]);
+			_pii[x + "_hex_lower"] = Logger::lower_hexify(_pii[x]);
+
 		}
 
 

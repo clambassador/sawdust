@@ -26,23 +26,25 @@ using namespace sawdust;
 
 int main(int argc, char** argv) {
 	Config::_()->load("sawdust.cfg");
+        assert(!Config::_()->gets("packetdb").empty());
+
+	SaveProcessor sp;
+
 	string devfile = "";
 	map<string, string> processor_description;
 	map<string, unique_ptr<IProcessor>> processors;
 	processors["keymap"].reset(new KeymapProcessor());
 
 	if (argc < 2) {
-		Logger::error("usage: packetprocessor packetname");
+		Logger::error("usage: keymap_a_packet packetname");
 		Logger::error("");
 		Logger::error("processors: %", processors);
 		return -1;
 	}
-	IProcessor *cur = processors["keymap"].get();
-
-	string data;
-	Fileutil::read_file(argv[1], &data);
-	Packet packet("", "", data, 0, 0, "O");
+        string packetname = argv[1];
+	Packet packet(packetname);
 	assert(packet.valid());
+	IProcessor *cur = processors["keymap"].get();
 
 	cur->init(packet._app, "", "", "", 0, nullptr);
 	cur->process(&packet);
