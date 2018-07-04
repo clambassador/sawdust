@@ -11,6 +11,7 @@
 #include <openssl/aes.h>
 #include <openssl/evp.h>
 #include <sys/stat.h>
+#include <zlib.h>
 
 #include "ib/config.h"
 #include "ib/fileutil.h"
@@ -172,11 +173,57 @@ public:
 			assert(tid == -1);
 			_raw = next;
 		}
+		string unchunk = maybe_unchunk(_raw);
+		if (!unchunk.empty()) {
+			if (unchunk[unchunk.length() - 1] == '\n') unchunk = unchunk.substr(0, unchunk.length() - 1);
+			ofstream fout("/tmp/chunked_data");
+			fout.write(unchunk.c_str(), unchunk.length());
+			fout.close();
+			unlink("/tmp/gunziped");
+			system("zcat /tmp/chunked_data > /tmp/gunziped 2>/dev/null");
+			unchunk = "";
+			Fileutil::read_file("/tmp/gunziped", &unchunk);
+			unlink("/tmp/chunked_data");
+		}
 		_data = Tokenizer::hex_unescape(_raw);
+		if (!unchunk.empty()) {
+			_data += "\r \r" + unchunk;
+			Logger::error("unchunked: %", unchunk);
+		}
+
 
 		add_base64(_data, 4);
 		hash();
 		save();
+	}
+
+	virtual string maybe_unchunk(const string& raw) {
+		string hexval, tmp;
+		stringstream retss;
+		size_t pos = 0;
+		while (pos < raw.length() - 4 && raw.substr(pos, 4) != "\r\n\r\n") ++pos;
+		if (pos == raw.length() - 4) return "";
+		do {
+			while (pos < raw.length() && (raw[pos] == '\r' || raw[pos] == '\n')) ++pos;
+			if (pos >= raw.length()) {
+				break;
+			}
+			Tokenizer::extract("%\r\n%", raw.substr(pos), &hexval, &tmp);
+			stringstream ss;
+			uint64_t len;
+			ss << hexval;
+			ss >> hex >> len;
+
+			if (len < 1000000) {
+				if (tmp.length() < len) len = tmp.length();
+				retss << tmp.substr(0, len);
+				pos += len + hexval.length() + 2;
+			} else {
+				retss.str("");
+				break;
+			}
+		} while (true);
+		return retss.str();
 	}
 
 	virtual void add_base64(const string& data, int depth) {
