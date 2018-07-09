@@ -173,6 +173,7 @@ public:
 			assert(tid == -1);
 			_raw = next;
 		}
+		/*
 		string unchunk = maybe_unchunk(_raw);
 		if (!unchunk.empty()) {
 			if (unchunk[unchunk.length() - 1] == '\n') unchunk = unchunk.substr(0, unchunk.length() - 1);
@@ -184,11 +185,11 @@ public:
 			unchunk = "";
 			Fileutil::read_file("/tmp/gunziped", &unchunk);
 			unlink("/tmp/chunked_data");
-		}
+		}*/
 		_data = Tokenizer::hex_unescape(_raw);
-		if (!unchunk.empty()) {
+		/*if (!unchunk.empty()) {
 			_data += "\r \r" + unchunk;
-		}
+		}*/
 
 
 		add_base64(_data, 4);
