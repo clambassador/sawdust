@@ -188,7 +188,6 @@ public:
 		_data = Tokenizer::hex_unescape(_raw);
 		if (!unchunk.empty()) {
 			_data += "\r \r" + unchunk;
-			Logger::error("unchunked: %", unchunk);
 		}
 
 
@@ -201,8 +200,8 @@ public:
 		string hexval, tmp;
 		stringstream retss;
 		size_t pos = 0;
-		while (pos < raw.length() - 4 && raw.substr(pos, 4) != "\r\n\r\n") ++pos;
-		if (pos == raw.length() - 4) return "";
+		while (pos + 4 < raw.length() && raw.substr(pos, 4) != "\r\n\r\n") ++pos;
+		if (pos + 4 == raw.length()) return "";
 		do {
 			while (pos < raw.length() && (raw[pos] == '\r' || raw[pos] == '\n')) ++pos;
 			if (pos >= raw.length()) {
