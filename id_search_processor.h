@@ -5,6 +5,7 @@
 #include <cassert>
 #include <iostream>
 #include <string>
+#include <unordered_map>
 
 #include "i_processor.h"
 #include "packet.h"
@@ -23,7 +24,6 @@ namespace sawdust {
 class IDSearchProcessor : public IProcessor {
 public:
 	IDSearchProcessor(const string& device_file) {
-
 		_productions.push_back(Config::_()->gets("p1"));
 		_productions.push_back(Config::_()->gets("p2"));
 
@@ -45,6 +45,9 @@ public:
 			items.push_back(x.first);
 		}
 		for (auto &x : items) {
+			if (x.find("latitude") != string::npos) continue;
+			if (x.find("longitude") != string::npos) continue;
+
 			unsigned char hash[SHA_DIGEST_LENGTH];
 			unsigned char md5hash[MD5_DIGEST_LENGTH];
 			MD5((const unsigned char* ) _pii[x].c_str(),
@@ -81,8 +84,10 @@ public:
 			string rev = _pii[x];
 			reverse(rev.begin(), rev.end());
 			_pii[x + "_rev"] = rev;
-			_pii[x + "_hex_upper"] = Logger::hexify(_pii[x]);
-			_pii[x + "_hex_lower"] = Logger::lower_hexify(_pii[x]);
+			string hexup = Logger::hexify(_pii[x]);
+			string hexlow = Logger::lower_hexify(_pii[x]);
+			_pii[x + "_hex_upper"] = hexup;
+			if (hexlow != hexup) _pii[x + "_hex_lower"] = Logger::lower_hexify(_pii[x]);
 
 		}
 
@@ -475,7 +480,7 @@ protected:
 	}
 
 	string _match;
-	map<string, string> _pii;
+	unordered_map<string, string> _pii;
 	vector<string> _productions;
 };
 

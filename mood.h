@@ -96,7 +96,7 @@ public:
 				_events.push_back(_events.back() + 25);
 				_mood = MOOD_BEFORE_USE;
 			} else {
-				Logger::error("did not set % % %", search, data, pre);
+				_then = 0;
 			}
 		}
 		if (_mood == MOOD_BEFORE_USE) {
