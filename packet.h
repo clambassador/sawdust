@@ -173,24 +173,26 @@ public:
 			assert(tid == -1);
 			_raw = next;
 		}
+/*		_chunk = false;
 		string unchunk = maybe_unchunk(_raw);
 		if (!unchunk.empty()) {
 			if (unchunk[unchunk.length() - 1] == '\n') unchunk = unchunk.substr(0, unchunk.length() - 1);
-			ofstream fout("/tmp/chunked_data");
+			ofstream fout("/tmp/jcr_chunked_data");
 			fout.write(unchunk.c_str(), unchunk.length());
 			fout.close();
-			unlink("/tmp/gunziped");
-			system("zcat /tmp/chunked_data > /tmp/gunziped 2>/dev/null");
+			unlink("/tmp/jcr_gunziped");
+			system("zcat /tmp/jcr_chunked_data > /tmp/jcr_gunziped 2>/dev/null");
 			unchunk = "";
-			Fileutil::read_file("/tmp/gunziped", &unchunk);
-			unlink("/tmp/chunked_data");
-		}
+			Fileutil::read_file("/tmp/jcr_gunziped", &unchunk);
+			unlink("/tmp/jcr_chunked_data");
+			unlink("/tmp/jcr_gunziped");
+		}*/
 		_data = Tokenizer::hex_unescape(_raw);
-		if (!unchunk.empty()) {
+/*		if (!unchunk.empty()) {
 			_data += "\r \r" + unchunk;
+			_chunk = true;
 		}
-
-
+*/
 		add_base64(_data, 4);
 		hash();
 		save();
@@ -655,6 +657,7 @@ public:
 	static char _iv[AES_BLOCK_SIZE];
 
 	int _year;
+	bool _chunk;
 };
 
 }  // namespace sawdust

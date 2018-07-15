@@ -14,13 +14,22 @@ for l in open(sys.argv[1]).read().split('\n')[:-1]:
 	    dest = p[5]
 	    data = p[8]
 
-	    key = p[1] + "," + p[2] + "," + p[3] + "," + p[4] + "," + p[5] + "," + p[6] + "," + p[7]
+	    key = p[1] + "," + p[2] + "," + p[3] + "," + p[4] + "," + p[5] + "," + p[6] + "," + p[7] + "," + p[0] + "," + p[12] + "," + p[13] + "," + p[14]
 	    if not d.has_key(key):
 	    	    d[key] = dict()
 
-	    d[key][p[8]] = p[9] + "," + p[10] + "," + p[11] + "," + p[0]
+	    d[key][p[8]] = p[9] + "," + p[10] + "," + p[11] + "," + p[0] + "," + p[12] + "," + p[13] + "," + p[14]
         except:
             print >> sys.stderr, "bad parse: " + l
+
+def keytrim(r):
+	i = 7
+	s = ''
+	for c in r:
+		s += c
+		if c == ',': i -=1
+		if i == 0: return s[0:-1];
+	assert(0)
 
 violations = dict()
 def report(v, k, d, p, n):
@@ -102,4 +111,4 @@ for key in d:
 
 for i in violations:
 	for j in violations[i]:
-		print i + "," + j + "," + violations[i][j]
+		print keytrim(i) + "," + j + "," + violations[i][j]

@@ -30,6 +30,11 @@ public:
 			leveldb::Status status = leveldb::DB::Open(
 			    options, Config::_()->gets("packetdb"), &_db);
 			Packet::_db = _db;
+			if (!_db) {
+				Logger::error("error opening %: %",
+					      Config::_()->gets("packetdb"),
+					      status.ToString());
+			}
 			assert(_db);
 		}
 	}

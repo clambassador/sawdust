@@ -121,7 +121,6 @@ int do_log(const string& log, SaveProcessor* save) {
 	if (app.empty()) {
 		Logger::error("Unable to parse app name from file name. "
 			      "Use format: app-version-time.log");
-		//return 0;
 		time = "99990101010101";
 		app = "*";
 		version = "1";

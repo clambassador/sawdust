@@ -71,6 +71,9 @@ public:
 		add_search("package_dump", "com.lexa.fakegps");
 		add_search("invasive", "theserver");
 		add_search("real_name", "Miwszytcgm Kjhyoucksx");
+		add_search("googleapi_lat", "37.870009");
+		add_search("googleapi_lng", "-122.271049");
+		add_search("logcat", "--------- beginning of main");
 		items.clear();
 		for (auto &x : _pii) {
 			items.push_back(x.first);

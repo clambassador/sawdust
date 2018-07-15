@@ -26,25 +26,22 @@ using namespace sawdust;
 
 int main(int argc, char** argv) {
 	if (argc < 4) {
-		Logger::error("usage: dns_resolve csv ipdns ip_col dns_col");
+		Logger::error("usage: dns_sni_merge csv col1 col2");
 		return -1;
 	}
 	CSVTable table_in;
-	map<string, string> corrections;
-	CSVTable::load_map(argv[2], &corrections);
 	table_in.load(argv[1]);
-	int col1 = atoi(argv[3]);
-	int col2 = atoi(argv[4]);
-	const vector<string>& ip = table_in.project(col1);
-	vector<string> dns = table_in.project(col2);
+	int col1 = atoi(argv[2]);
+	int col2 = atoi(argv[3]);
+	vector<string> dns = table_in.project(col1);
+	vector<string> sni = table_in.project(col2);
 	for (size_t i = 0; i < dns.size(); ++i) {
-		if (dns[i].empty() && corrections.count(ip[i])) {
-			dns[i] = corrections[ip[i]];
+		if (dns[i].empty() && !sni[i].empty()) {
+			dns[i] = sni[i];
 		}
 	}
-	table_in.project(col2, dns);
+	table_in.project(col1, dns);
 	string prefix;
 	Tokenizer::extract("%.csv", argv[1], &prefix);
 	table_in.save(Logger::stringify("%-dns.csv", prefix));
-
 }
