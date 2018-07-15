@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
         05-04 16:09:39.565   888  3854 I Permission-Sensitive-UCB: android.permission.READ_PHONE_STATE:edu.berkeley.icsi.devfilegen:false:checkReadPhoneState
 
         Permission format:
-        06-20 15:44:46.736   997  1458 I DataRecorder: 10011 SVMPredict-1 android.permission.GET_ACCOUNTS:com.google.android.gms.persistent:true:com.android.launcher3:GetAccounts:00.0
+        07-08 18:42:59.869   890   901 I DataRecorder: 10011 SensitivePermission android.permission.ACCESS_WIFI_STATE:com.google.android.gms.persistent:true:com.android.launcher3:getScanResults:10.0
 
         */
 		size_t pos_legacy = x.find(" I Permission-Sensitive-UCB:");
@@ -98,7 +98,7 @@ int main(int argc, char** argv) {
             if(legacy_found) {
 			    pattern = "% % %Permission-Sensitive-UCB: android.permission.%:%:%";
             } else if(perm_found) {
-                pattern = "% % %SVMPredict-1 android.permission.%:%:%";
+                pattern = "% % %SensitivePermission android.permission.%:%:%";
             }
 
             Tokenizer::extract(pattern, x,

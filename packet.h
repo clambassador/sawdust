@@ -193,6 +193,7 @@ public:
 			_chunk = true;
 		}
 */
+
 		add_base64(_data, 4);
 		hash();
 		save();
