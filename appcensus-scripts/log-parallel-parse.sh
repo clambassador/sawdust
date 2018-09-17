@@ -63,9 +63,11 @@ if [ ! -f $LOG_PARALLEL_PARSE_LOCK ]; then
         cat $FILES_PROCESSED | xargs -I {} $MY_DIR/logs-procpackets.sh {} > $TRANSMITS
     else
         (>&2 echo 'USAGE: log-parallel-parse.sh <input logs directory> <output dir> <packetdb dir>')
+        exit 1
     fi
 
 else
     (>&2 echo "log-parallel-parse currently locked ($LOG_PARALLEL_PARSE_LOCK exists)")
+    exit 1
 fi
 
