@@ -28,8 +28,6 @@ if [ ! -f $LOG_PARALLEL_PARSE_LOCK ]; then
         OUT_DIR=$(realpath $2)
         PACKETS_DIR=$(realpath $3)
 
-        cd $MY_DIR
-
         TIMESTAMP=$(date +%Y%m%d%H%M)
         TRANSMITS=$OUT_DIR/$TIMESTAMP.transmissions
         PERMS=$OUT_DIR/$TIMESTAMP.permissions
@@ -57,12 +55,12 @@ if [ ! -f $LOG_PARALLEL_PARSE_LOCK ]; then
         find $LOGS_DIR -name "*.log" -mmin +30 -exec bash -c 'LOG_DIR=$(dirname {}); test ! -f $LOG_DIR/processed.status' \; -print > $FILES_PROCESSED
 
         # Parse permission and file access logs in parallel
-        cat $FILES_PROCESSED | parallel --no-notice ./logs-procpermissions.sh > $PERMS
-        cat $FILES_PROCESSED | parallel --no-notice ./logs-procdmesg.sh > $FILES
-        cat $FILES_PROCESSED | parallel --no-notice ./logs-procexec.sh > $EXECS
+        cat $FILES_PROCESSED | parallel --no-notice $MY_DIR/logs-procpermissions.sh > $PERMS
+        cat $FILES_PROCESSED | parallel --no-notice $MY_DIR/logs-procdmesg.sh > $FILES
+        cat $FILES_PROCESSED | parallel --no-notice $MY_DIR/logs-procexec.sh > $EXECS
 
         # Parse packets serially (leveldb is not thread-safe)
-        cat $FILES_PROCESSED | xargs -I {} ./logs-procpackets.sh {} > $TRANSMITS
+        cat $FILES_PROCESSED | xargs -I {} $MY_DIR/logs-procpackets.sh {} > $TRANSMITS
     else
         (>&2 echo 'USAGE: log-parallel-parse.sh <input logs directory> <output dir> <packetdb dir>')
     fi
