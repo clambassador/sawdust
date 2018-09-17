@@ -5,7 +5,6 @@ source $MY_DIR/common-local.sh
 
 LOG_PARALLEL_PARSE_LOCK=/tmp/log-parallel-parse.lock
 function unlocklogs() {
-    echo "unlocking"
     rm -f $LOG_PARALLEL_PARSE_LOCK
 }
 
