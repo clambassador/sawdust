@@ -29,9 +29,9 @@ int main(int argc, char** argv) {
 		Logger::error("usage: dns_resolve csv ipdns ip_col dns_col");
 		return -1;
 	}
-	CSVTable table_in;
+	CSVTable<false> table_in;
 	map<string, string> corrections;
-	CSVTable::load_map(argv[2], &corrections);
+	CSVTable<false>::load_map(argv[2], &corrections);
 	table_in.load(argv[1]);
 	int col1 = atoi(argv[3]);
 	int col2 = atoi(argv[4]);

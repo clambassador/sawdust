@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
 		Logger::error("usage: dns_sni_merge csv col1 col2");
 		return -1;
 	}
-	CSVTable table_in;
+	CSVTable<true> table_in;
 	table_in.load(argv[1]);
 	int col1 = atoi(argv[2]);
 	int col2 = atoi(argv[3]);
