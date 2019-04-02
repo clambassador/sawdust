@@ -17,7 +17,7 @@ if [ $# -eq 1 ]; then
         TEST_HOUR=${TEST_TIME:8:2}
         TEST_MIN=${TEST_TIME:10:2}
         TEST_SEC=${TEST_TIME:12:2}
-        TIMESTAMP=$(date -d "$TEST_YEAR-$TEST_MONTH-$TEST_DAY $TEST_HOUR:$TEST_MIN:$TEST_SEC UTC" +%s)
+        TIMESTAMP=$(date -d "$TEST_YEAR-$TEST_MONTH-$TEST_DAY $TEST_HOUR:$TEST_MIN:$TEST_SEC UTC" +%s || echo '0')
 
         # Get the app's PID
         PID=$(grep "PermissionDeciderManager-UCB: Packages list: .*$APP " $LOG_FILE | head -n1 | awk -F ':' '{print $5}' | xargs)
